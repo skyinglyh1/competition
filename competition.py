@@ -192,16 +192,12 @@ def Main(operation, args):
             return False
         feePercentage = args[0]
         return setFeePercentage(feePercentage)
-    if operation == "startGame":
-        if len(args) != 1:
-            return False
-        gameId = args[0]
-        return startGame(gameId)
     if operation == "sendReqToOracle":
         if len(args) != 1:
             return False
         jsonIndex = args[0]
         return sendReqToOracle(jsonIndex)
+
     if operation == "createGameByOracleRes":
         if len(args) != 1:
             return False
@@ -226,13 +222,19 @@ def Main(operation, args):
             return False
         gameId = args[0]
         return endGame(gameId)
-    if operation == "endDisk":
+    if operation == "saveGameResultByHand":
         if len(args) != 3:
             return False
         gameId = args[0]
-        diskId = args[1]
-        diskRes = args[2]
-        return endDisk(gameId, diskId, diskRes)
+        diskIdList = args[1]
+        diskResList = args[2]
+        return saveGameResultByHand(gameId, diskIdList, diskResList)
+    if operation == "endDisksByHand":
+        if len(args) != 2:
+            return False
+        diskIdList = args[0]
+        diskResList = args[1]
+        return endDisksByHand(diskIdList, diskResList)
     if operation == "devWithdraw":
         if len(args) != 1:
             return False
@@ -246,6 +248,16 @@ def Main(operation, args):
         return getDevProfit(devAddr)
     if operation == "getFeePercentage":
         return getFeePercentage()
+    if operation == "getDiskIdList":
+        if len(args) != 1:
+            return False
+        gameId = args[0]
+        return getDiskIdList(gameId)
+    if operation == "getGameBetEndTime":
+        if len(args) != 1:
+            return False
+        gameId = args[0]
+        return getGameBetEndTime(gameId)
     if operation == "getDiskBetAmount":
         if len(args) != 2:
             return False
@@ -270,6 +282,12 @@ def Main(operation, args):
             return False
         gameId = args[0]
         return canPlaceBet(gameId)
+    if operation == "getDiskResult":
+        if len(args) != 2:
+            return False
+        gameId = args[0]
+        diskId = args[1]
+        return getDiskResult(gameId, diskId)
     if operation == "getDiskGameStatus":
         if len(args) != 1:
             return False
@@ -282,7 +300,6 @@ def init():
     inited = Get(GetContext(), INIT_KEY)
     if not inited:
         setFeePercentage(5)
-
     return True
 
 def setFeePercentage(feePercentage):
@@ -291,14 +308,6 @@ def setFeePercentage(feePercentage):
     Require(feePercentage >= 0)
     Put(GetContext(), FEE_PERCENTAGE_KEY, feePercentage)
     Notify(["setFeePercentage", feePercentage])
-    return True
-
-def startGame(gameId):
-    RequireWitness(Operater)
-
-    # mark the gameId betting starts
-    Put(GetContext(), concatKey(GAME_STATUS_PREFIX, gameId), 1)
-    Notify(["startGame", gameId])
     return True
 
 
@@ -382,11 +391,6 @@ def createGameByOracleRes(jsonIndex):
     # # extract game and disk info from res
     # # make sure gameId is consistent with that provided within response
     # # gameId, diskIdList, betEndTime
-    # diskIdList = [1, 2, 3]
-    # betEndTime = 100
-
-    # Put(GetContext(), concatKey(GAME_DISKID_PREFIX, gameId), Serialize(diskIdList))
-    # Put(GetContext(), concatKey(GAME_BET_ENDTIME_PREFIX, gameId), betEndTime)
 
     Notify(["createGameByOracleRes", gameIdList, gameDiskIdList, endTimeList])
     return True
@@ -510,26 +514,6 @@ def saveGameResultByOracleRes(jsonIndex):
     return True
 
 
-def saveGameResultByHand(gameId, diskIdList, diskResList):
-    RequireWitness(Operater)
-    diskResMapInfo = Get(GetContext(), concatKey(GAME_RES_PREFIX, gameId))
-    if not diskResMapInfo:
-        Notify(["saveGameResultByHandErr", "Should Request Game Result First!"])
-        return False
-    diskResMap = Deserialize(diskResMapInfo)
-    gameDiskIdList = getDiskIdList(gameId)
-    diskIdLen = len(diskIdList)
-    diskIdIndex = 0
-    while diskIdIndex < diskIdLen:
-        diskId = diskIdList[diskIdIndex]
-        Require(_checkInList(diskId, gameDiskIdList))
-        Require(diskResMapInfo[diskId] == -2)
-        diskResMap[diskId] = diskResList[diskIdIndex]
-    Put(GetContext(), concatKey(GAME_RES_PREFIX, gameId), Serialize(diskResMap))
-    Notify(["saveGameResultByHand", gameId, diskIdList, diskResList])
-    return True
-
-
 
 
 def endGame(gameIdList):
@@ -556,17 +540,43 @@ def endGame(gameIdList):
     return True
 
 
-def endDiskByHand(diskIdList, diskResList):
+def saveGameResultByHand(gameId, diskIdList, diskResList):
     RequireWitness(Operater)
-    totalDiskProfitForDev = 0
+    diskResMapInfo = Get(GetContext(), concatKey(GAME_RES_PREFIX, gameId))
+    if not diskResMapInfo:
+        Notify(["saveGameResultByHandErr", "Should Request Game Result First!"])
+        return False
+    diskResMap = Deserialize(diskResMapInfo)
+    gameDiskIdList = getDiskIdList(gameId)
     diskIdLen = len(diskIdList)
-    diskResLen = len(diskResList)
-    Require(diskIdLen == diskResLen)
     diskIdIndex = 0
     while diskIdIndex < diskIdLen:
         diskId = diskIdList[diskIdIndex]
-        diskRes = diskResList[diskIdIndex]
-        diskProfitForDev = _endDisk( diskId, diskRes)
+        Require(getDiskStatus(diskId) == 0)
+        Require(_checkInList(diskId, gameDiskIdList))
+        Require(diskResMapInfo[diskId] == -2)
+        diskResMap[diskId] = diskResList[diskIdIndex]
+    Put(GetContext(), concatKey(GAME_RES_PREFIX, gameId), Serialize(diskResMap))
+    Notify(["saveGameResultByHand", gameId, diskIdList, diskResList])
+    return True
+
+
+def endDisksByHand(gameId, diskIdList):
+    RequireWitness(Operater)
+
+    # diskResList = getd
+    totalDiskProfitForDev = 0
+    diskIdLen = len(diskIdList)
+    # diskResLen = len(diskResList)
+    # Require(diskIdLen == diskResLen)
+    diskResMapInfo = Get(GetContext(), concatKey(GAME_RES_PREFIX, gameId))
+    Require(not diskResMapInfo)
+    diskResMap = Deserialize(diskResMapInfo)
+    diskIdIndex = 0
+    while diskIdIndex < diskIdLen:
+        diskId = diskIdList[diskIdIndex]
+        diskRes = diskResMap[diskId]
+        diskProfitForDev = _endDisk(diskId, diskRes)
         totalDiskProfitForDev = Add(totalDiskProfitForDev, diskProfitForDev)
     # update the profit for dev
     _updateProfitForDev(totalDiskProfitForDev)
@@ -575,7 +585,7 @@ def endDiskByHand(diskIdList, diskResList):
 
 def _endDisk(diskId, diskRes):
     """
-    settle all the accounts within gameId-diskId disk bet.
+    settle all the accounts within diskId disk bet.
     :param gameId:
     :param diskId:
     :param diskRes: could be -2, -1, 0, 1, 2
@@ -683,13 +693,42 @@ def canPlaceBet(gameId):
     return GetTime() < Get(GetContext(), concatKey(gameId, GAME_BET_ENDTIME_PREFIX))
 
 
+def getDiskResult(gameId, diskId):
+    """
+
+    :param gameId:
+    :param diskId:
+    :return:
+    3 means gameId has not been initialized.
+    4 means gameId has been initialized, yet diskId illegal.
+    5 means dev should get game results through Oracle first by invoking saveGameResultByOracleRes method.
+    """
+    # make sure address can place bet, otherwise, raise exception
+    Require(canPlaceBet(gameId) == True)
+
+    diskIdListInfo = Get(GetContext(), concatKey(GAME_DISKID_LIST_PREFIX, gameId))
+
+    if not diskIdListInfo:
+        return 3
+    diskIdList = Deserialize(diskIdListInfo)
+    # make sure the passing by diskId is legal
+    # Require(_checkInList(diskId, diskIdList))
+    if _checkInList(diskId, diskIdList) == False:
+        return 4
+
+    diskResMapInfo = Get(GetContext(), concatKey(GAME_RES_PREFIX, gameId))
+    if not diskResMapInfo:
+        return 5
+    diskResMap = Deserialize(diskResMapInfo)
+    return diskResMap[diskId]
+
 
 def getDiskStatus(diskId):
     """
     :param diskId:
     :return:
-    0 means the gameId-diskId has NOT been ended yet.
-    1 means the gameId-diskId has already been ended.
+    0 means the diskId has NOT been ended yet.
+    1 means the diskId has already been ended.
     ENDED means all the players' accounts have been settled.
     """
     return Get(GetContext(), concatKey(DISK_STATUS_PERFIX, diskId))
@@ -721,7 +760,7 @@ def _updateProfitForDev(profitPorDev):
 
 
 
-def getOracleReq(gameId):
+def getOracleReq(jsonIndex):
     """
     joint different pieces to form the complete request
     :param gameId:
