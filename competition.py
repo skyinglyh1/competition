@@ -153,7 +153,7 @@ ONGMagnitude = 1000000000
 Magnitude = 1000000000000000000000000000000
 
 
-OracleContract = RegisterAppCall('ff4d2c2765346c9229201687604af4f59a0a334f', 'operation', 'args')
+OracleContract = RegisterAppCall('e0d635c7eb2c5eaa7d2207756a4c03a89790934a', 'operation', 'args')
 SelfContractAddress = GetExecutingScriptHash()
 
 DEV_PROFIT_PREFIX = "DEV"
@@ -183,7 +183,98 @@ Dev1Percentage = 80
 def Main(operation, args):
     if operation == "init":
         return init()
+    if operation == "setFeePercentage":
+        if len(args) != 1:
+            return False
+        feePercentage = args[0]
+        return setFeePercentage(feePercentage)
+    if operation == "startGame":
+        if len(args) != 1:
+            return False
+        gameId = args[0]
+        return startGame(gameId)
+    if operation == "sendReqToOracle":
+        if len(args) != 1:
+            return False
+        gameId = args[0]
+        return sendReqToOracle(gameId)
+    if operation == "createGameByOracleRes":
+        if len(args) != 1:
+            return False
+        gameId = args[0]
+        return createGameByOracleRes(gameId)
+    if operation == "placeBet":
+        if len(args) != 5:
+            return False
+        address = args[0]
+        gameId = args[1]
+        diskId = args[2]
+        betStatus = args[3]
+        ongAmount = args[4]
+        return placeBet(address, gameId, diskId, betStatus, ongAmount)
+    if operation == "saveGameResultByOracleRes":
+        if len(args) != 1:
+            return False
+        gameId = args[0]
+        return saveGameResultByOracleRes(gameId)
+    if operation == "endGame":
+        if len(args) != 1:
+            return False
+        gameId = args[0]
+        return endGame(gameId)
+    if operation == "endDisk":
+        if len(args) != 3:
+            return False
+        gameId = args[0]
+        diskId = args[1]
+        diskRes = args[2]
+        return endDisk(gameId, diskId, diskRes)
+    if operation == "devWithdraw":
+        if len(args) != 1:
+            return False
+        devAddr = args[0]
+        return devWithdraw(devAddr)
 
+    if operation == "getDevProfit":
+        if len(args) != 1:
+            return False
+        devAddr = args[0]
+        return getDevProfit(devAddr)
+    if operation == "getFeePercentage":
+        return getFeePercentage()
+    if operation == "getDiskBetAmount":
+        if len(args) != 3:
+            return False
+        gameId = args[0]
+        diskId = args[1]
+        betStatus = args[2]
+        return getDiskBetAmount(gameId, diskId, betStatus)
+    if operation == "getDiskBetBalance":
+        if len(args) != 4:
+            return False
+        gameId = args[0]
+        diskId = args[1]
+        betStatus = args[2]
+        address = args[3]
+        return getDiskBetBalance(gameId, diskId, betStatus, address)
+    if operation == "getDiskPlayersList":
+        if len(args) != 3:
+            return False
+        gameId = args[0]
+        diskId = args[1]
+        betStatus = args[2]
+        return getDiskPlayersList(gameId, diskId, betStatus)
+    if operation == "canPlaceBet":
+        if len(args) != 1:
+            return False
+        gameId = args[0]
+        return canPlaceBet(gameId)
+    if operation == "getDiskGameStatus":
+        if len(args) != 2:
+            return False
+        gameId = args[0]
+        diskId = args[1]
+        return getDiskGameStatus(gameId, diskId)
     return False
 
 def init():
@@ -211,13 +302,13 @@ def startGame(gameId):
     return True
 
 
-def sendReqToOracle(gameId, gameNum, diskNumList):
+def sendReqToOracle(gameId):
     """
     call oracle to get format or info of Games, including the gameId, diskId
     """
     RequireWitness(Operater)
 
-    req = getOracleReq(gameId, gameNum, diskNumList)
+    req = getOracleReq(gameId)
 
     txhash = GetTransactionHash(GetScriptContainer())
     if Get(GetContext(), concatKey(SENTREQHASH_FORMGAME_PREFIX, gameId)):
@@ -245,7 +336,7 @@ def createGameByOracleRes(gameId):
     Require(response)
 
     res = Deserialize(response)
-
+    Notify(["111", res])
 
     # extract game and disk info from res
     # make sure gameId is consistent with that provided within response
@@ -480,12 +571,12 @@ def _updateProfitForDev(profitPorDev):
     RequireWitness(Operater)
     dev1Share = Div(Mul(profitPorDev, Sub(100, Dev1Percentage)), 100)
     Put(GetContext(), concatKey(DEV_PROFIT_PREFIX, Dev1), Add(getDevProfit(Dev1), dev1Share))
-    Put(GetContext(), concatKey(DEV_PROFIT_PREFIX, dev2), add(getDevProfit(Dev2), Sub(profitPorDev, dev1Share)))
+    Put(GetContext(), concatKey(DEV_PROFIT_PREFIX, Dev2), Add(getDevProfit(Dev2), Sub(profitPorDev, dev1Share)))
     return True
 
 
 
-def getOracleReq(gameId, gameNum, diskNumList):
+def getOracleReq(gameId):
     """
     joint different pieces to form the complete request
     :param gameId:
@@ -561,72 +652,77 @@ def getOracleReq(gameId, gameNum, diskNumList):
     #     """
     # req = concat(reqhead, body)
 
-    req = """{
-    		"scheduler":{
-    			"type": "runAfter",
-    			"params": "2018-06-15 08:37:18"
-    		},
-    		"tasks":[
-    			{
-    			  "type": "httpGet",
-    			  "params": {
-    				"url": https://github.com/skyinglyh1/competition/blob/master/test.json
-    			  }
-    			},
-    			{
-    				"type": "jsonParse",
-    				"params":
-    				{
-    					"data":
-    					[
-    						{
-    							"type": "Array",
-    							"path": ["data", "game_game_array","1"],
-    							"sub_type":
-    							[
-    								{
-    									"type": "Struct",
-    									"sub_type":
-    									[
-    										{
-    											"type": "Int",
-    											"path": ["game_game_id"]
-    										},
-    										{
-    											"type": "Int",
-    											"path": ["count_down_time"]
-    										},
-    										{
-    											"type": "Array",
-    											"path": ["game_disk_array"],
-    											"sub_type":
-    											[
-    											    {
-    											        "type": "Struct",
-    											        "sub_type":
-    											        [
-    											            {
-    											                "type": "Int",
-    											                "path": ["game_disk_id"]
-    											            },
-    											            {
-    											                "type": "Int",
-    											                "path": ["game_disk_result"]
-    											            }
-    											        ]
-    											    }
-    											]
-    										}
-    										
-    									]
-    								}
-    							]
-    						}
-    					]
-    				}
-    			}
-    		]
-    	}"""
+    req = """
+    {
+        "scheduler":
+        {
+            "type": "runAfter",
+            "params": "2018-06-15 08:37:18"
+        },
+        "tasks":
+        [
+            {
+              "type": "httpGet",
+              "params": 
+              {
+                "url": "http://139.217.129.2:10338/1.json"
+              }
+            },
+            {
+                "type": "jsonParse",
+                "params":
+                {
+                    "data":
+                    
+                        {
+                            "type": "Array",
+                            "path": ["data", "game_game_array"],
+                            "sub_type":
+                            [
+                                {
+                                    "type": "Struct",
+                                    "sub_type":
+                                    [
+                                        {
+                                            "type": "Int",
+                                            "path": ["game_game_id"]
+                                        },
+                                        {
+                                            "type": "Int",
+                                            "path": ["count_down_time"]
+                                        },
+                                        {
+                                            "type": "Array",
+                                            "path": ["game_disk_array"],
+                                            "sub_type":
+                                            [
+                                                {
+                                                    "type": "Struct",
+                                                    "sub_type":
+                                                    [
+                                                        {
+                                                            "type": "Int",
+                                                            "path": ["game_disk_id"]
+                                                        },
+                                                        {
+                                                            "type": "Int",
+                                                            "path": ["game_disk_result"]
+                                                        }
+                                                    ]
+                                                }
+                                            ]
+                                        }
+                                        
+                                    ]
+                                }
+                            ]
+                        }
+                    
+                }
+            }
+        ]
+    }	
+    """
 
     return req
 
