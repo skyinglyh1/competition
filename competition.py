@@ -163,15 +163,19 @@ FEE_PERCENTAGE_KEY = "FEE"
 SENTREQHASH_FORMGAME_PREFIX = "G1"
 GAME_STATUS_PREFIX = 'G2'
 GAME_RES_PREFIX = "G3"
-GAME_DISKID_PREFIX = "G4"
+GAME_DISKID_LIST_PREFIX = "G4"
 GAME_BET_ENDTIME_PREFIX = "G5"
 
 DISK_ONG_AMOUNT_PREFIX = "G6"
 DISK_PLAYERS_LIST_PREFIX = "G7"
-DISK_STATUS_KEY = "G8"
+DISK_STATUS_PERFIX = "G8"
 PLAYER_BET_PREFIX = "G9"
 
 SENTREQHASH_SAVERES_PREFIX = "G10"
+DISK_BET_PLAYER_LIST_PREFIX = "G11"
+DISK_PLAYER_BET_BALANCE_PREFIX = "G12"
+DISK_PLAYERS_BET_AMOUNT_PREFIX = "G13"
+
 
 AbortSide = -1
 TieSide = 0
@@ -196,13 +200,13 @@ def Main(operation, args):
     if operation == "sendReqToOracle":
         if len(args) != 1:
             return False
-        gameId = args[0]
-        return sendReqToOracle(gameId)
+        jsonIndex = args[0]
+        return sendReqToOracle(jsonIndex)
     if operation == "createGameByOracleRes":
         if len(args) != 1:
             return False
-        gameId = args[0]
-        return createGameByOracleRes(gameId)
+        jsonIndex = args[0]
+        return createGameByOracleRes(jsonIndex)
     if operation == "placeBet":
         if len(args) != 5:
             return False
@@ -243,38 +247,34 @@ def Main(operation, args):
     if operation == "getFeePercentage":
         return getFeePercentage()
     if operation == "getDiskBetAmount":
-        if len(args) != 3:
+        if len(args) != 2:
             return False
-        gameId = args[0]
-        diskId = args[1]
-        betStatus = args[2]
-        return getDiskBetAmount(gameId, diskId, betStatus)
+        diskId = args[0]
+        betStatus = args[1]
+        return getDiskBetAmount(diskId, betStatus)
     if operation == "getDiskBetBalance":
-        if len(args) != 4:
-            return False
-        gameId = args[0]
-        diskId = args[1]
-        betStatus = args[2]
-        address = args[3]
-        return getDiskBetBalance(gameId, diskId, betStatus, address)
-    if operation == "getDiskPlayersList":
         if len(args) != 3:
             return False
-        gameId = args[0]
-        diskId = args[1]
-        betStatus = args[2]
-        return getDiskPlayersList(gameId, diskId, betStatus)
+        diskId = args[0]
+        betStatus = args[1]
+        address = args[2]
+        return getDiskBetBalance(diskId, betStatus, address)
+    if operation == "getDiskPlayersList":
+        if len(args) != 2:
+            return False
+        diskId = args[0]
+        betStatus = args[1]
+        return getDiskPlayersList(diskId, betStatus)
     if operation == "canPlaceBet":
         if len(args) != 1:
             return False
         gameId = args[0]
         return canPlaceBet(gameId)
     if operation == "getDiskGameStatus":
-        if len(args) != 2:
+        if len(args) != 1:
             return False
-        gameId = args[0]
-        diskId = args[1]
-        return getDiskGameStatus(gameId, diskId)
+        diskId = args[0]
+        return getDiskStatus(diskId)
     return False
 
 def init():
@@ -302,19 +302,19 @@ def startGame(gameId):
     return True
 
 
-def sendReqToOracle(gameId):
+def sendReqToOracle(jsonIndex):
     """
     call oracle to get format or info of Games, including the gameId, diskId
     """
     RequireWitness(Operater)
 
-    req = getOracleReq(gameId)
+    req = getOracleReq(jsonIndex)
 
     txhash = GetTransactionHash(GetScriptContainer())
-    if Get(GetContext(), concatKey(SENTREQHASH_FORMGAME_PREFIX, gameId)):
-        Put(GetContext(), concatKey(SENTREQHASH_SAVERES_PREFIX, gameId), txhash)
+    if Get(GetContext(), concatKey(SENTREQHASH_FORMGAME_PREFIX, jsonIndex)):
+        Put(GetContext(), concatKey(SENTREQHASH_SAVERES_PREFIX, jsonIndex), txhash)
     else:
-        Put(GetContext(), concatKey(SENTREQHASH_FORMGAME_PREFIX, gameId), txhash)
+        Put(GetContext(), concatKey(SENTREQHASH_FORMGAME_PREFIX, jsonIndex), txhash)
     res = OracleContract('CreateOracleRequest', [req, Operater])
     # if res == False:
     #      Notify(['callOracle failed'])
@@ -323,30 +323,72 @@ def sendReqToOracle(gameId):
     return True
 
 
-def createGameByOracleRes(gameId):
+def createGameByOracleRes(jsonIndex):
     RequireWitness(Operater)
 
     # # make sure the result hasn't be saved before
     # Require(not getGameResult(gameId))
 
-    # make sure the request has been sent out to the oracle contract
-    sentReqTxhash = Get(GetContext(), concatKey(SENTREQHASH_FORMGAME_PREFIX, gameId))
-    Require(sentReqTxhash)
+    # make sure the request to initiate games has been sent out to the oracle contract
+    sentReqTxhash = Get(GetContext(), concatKey(SENTREQHASH_FORMGAME_PREFIX, jsonIndex))
+    # Require(sentReqTxhash)
+    if not sentReqTxhash:
+        Notify(["createGameErr", "Request To Initiate Game Failed!"])
+        return False
     response = OracleContract('GetOracleOutcome', [sentReqTxhash])
-    Require(response)
+    # Require(response)
+    if not response:
+        Notify(["createGameErr", "Get Response From Oracle Failed!"])
+        return False
 
-    res = Deserialize(response)
-    Notify(["111", res])
+    a = Deserialize(response)
+    if a[2] != 0:
+        Notify(["createGameErr", "Get Response From Oracle With Error!"])
+        return False
+    # Notify(["111", a])
+    b = Deserialize(a[0])
 
-    # extract game and disk info from res
-    # make sure gameId is consistent with that provided within response
-    # gameId, diskIdList, betEndTime
-    diskIdList = [1, 2, 3]
-    betEndTime = 100
+    # Notify(["222", b])
+    c = b[0]
+    # Notify(["333", c])
+    gameIdList = []
+    endTimeList = []
+    gameDiskIdList = []
+    # resultList = []
+    for game in c:
+        gameId = game[0]
+        gameIdList.append(gameId)
+        endTime = game[1]
+        endTimeList.append(endTime)
+        tmpDiskIdList = []
+        tmp = game[2]
+        for gameDisk in tmp:
+            tmpDiskId = gameDisk[0]
+            # tmpDiskRes = gameDisk[1]
+            tmpDiskIdList.append(tmpDiskId)
+        gameDiskIdList.append(tmpDiskIdList)
 
-    Put(GetContext(), concatKey(GAME_DISKID_PREFIX, gameId), Serialize(diskIdList))
-    Put(GetContext(), concatKey(GAME_BET_ENDTIME_PREFIX, gameId), betEndTime)
+    gameIdLen = len(gameIdList)
+    gameIdIndex = 0
+    while gameIdIndex < gameIdLen:
+        gameId = gameIdList[gameIdIndex]
+        diskIdList = gameDiskIdList[gameIdIndex]
+        betEndTime = endTimeList[gameIdIndex]
+        Put(GetContext(), concatKey(GAME_DISKID_LIST_PREFIX, gameId), Serialize(diskIdList))
+        Put(GetContext(), concatKey(GAME_BET_ENDTIME_PREFIX, gameId), betEndTime)
 
+        gameIdIndex = gameIdIndex + 1
+
+    # # extract game and disk info from res
+    # # make sure gameId is consistent with that provided within response
+    # # gameId, diskIdList, betEndTime
+    # diskIdList = [1, 2, 3]
+    # betEndTime = 100
+
+    # Put(GetContext(), concatKey(GAME_DISKID_PREFIX, gameId), Serialize(diskIdList))
+    # Put(GetContext(), concatKey(GAME_BET_ENDTIME_PREFIX, gameId), betEndTime)
+
+    Notify(["createGameByOracleRes", gameIdList, gameDiskIdList, endTimeList])
     return True
 
 
@@ -354,139 +396,218 @@ def placeBet(address, gameId, diskId, betStatus, ongAmount):
     RequireWitness(address)
     # make sure address can place bet, otherwise, raise exception
     Require(canPlaceBet(gameId) == True)
-    diskIdListInfo = Get(GetContext(), concatKey(GAME_DISKID_PREFIX, gameId))
+
+    diskIdListInfo = Get(GetContext(), concatKey(GAME_DISKID_LIST_PREFIX, gameId))
 
     if not diskIdListInfo:
-        Notify(["placeBet", "diskId illegal!"])
+        Notify(["PlaceBetErr", "diskId Not Exist!"])
         return False
     diskIdList = Deserialize(diskIdListInfo)
     # make sure the passing by diskId is legal
-    Require(_checkInList(diskId, diskIdList))
-
-    # betStatus can only be 0, 1 or 2
-    if betStatus > 2 or betStatus < 0:
-        Notify(["placeBet", "betStatus illegal!"])
+    # Require(_checkInList(diskId, diskIdList))
+    if _checkInList(diskId, diskIdList) == False:
+        Notify(["PlaceBetErr", "diskId illegal!"])
         return False
 
-    Require(_transferONG(address, ContractAddress, ongAmount))
-
-    playersList = getDiskPlayersList(gameId, diskId, betStatus)
+    # betStatus can only be 0, 1 or 2
+    if betStatus == TieSide or betStatus == LeftSide or betStatus == RightSide:
+        Require(_transferONG(address, ContractAddress, ongAmount))
+    else:
+        Notify(["PlaceBetErr", "betStatus illegal!"])
+        return False
+    playersList = getDiskPlayersList(diskId, betStatus)
     if not _checkInList(address, playersList):
         # update playersList
         playersList.append(address)
-        Put(GetContext(), concatKey(concatKey(gameId, diskId), betStatus), Serialize(playersList))
+        Put(GetContext(), concatKey(concatKey(DISK_BET_PLAYER_LIST_PREFIX, diskId), betStatus), Serialize(playersList))
 
     # update address's bet balance
-    Put(GetContext(), concatKey(concatKey(gameId, diskId), concatKey(address, betStatus)), Add(getDiskBetBalance(gameId, diskId, betStatus, address), ongAmount))
+    Put(GetContext(), concatKey(concatKey(DISK_PLAYER_BET_BALANCE_PREFIX, diskId), concatKey(address, betStatus)), Add(getDiskBetBalance(diskId, betStatus, address), ongAmount))
 
     # update the disk bet amount
-    Put(GetContext(), concatKey(concatKey(gameId, diskId), betStatus), Add(getDiskBetAmount(gameId, diskId, betStatus), ongAmount))
+    Put(GetContext(), concatKey(concatKey(DISK_PLAYERS_BET_AMOUNT_PREFIX, diskId), betStatus), Add(getDiskBetAmount(gameId, diskId, betStatus), ongAmount))
 
     Notify(["placeBet", address, gameId, diskId, betStatus, ongAmount])
 
     return True
 
 
-def saveGameResultByOracleRes(gameId):
+def saveGameResultByOracleRes(jsonIndex):
+    """
+    Before invoke this method, the sendReqToOracle(jsonIndex) should be invoked again to store the game and disk results.
+    :param jsonIndex:
+    :return:
+    """
     RequireWitness(Operater)
 
-    # # make sure the result hasn't be saved before
-    # Require(not getGameResult(gameId))
-
     # make sure the request has been sent out to the oracle contract
-    sentReqTxhash = Get(GetContext(), concatKey(SENTREQHASH_SAVERES_PREFIX, gameId))
-    Require(sentReqTxhash)
+    sentReqTxhash = Get(GetContext(), concatKey(SENTREQHASH_SAVERES_PREFIX, jsonIndex))
+
+    # Require(sentReqTxhash)
+    if not sentReqTxhash:
+        Notify(["SaveGameResErr", "Request To Save Game Results Failed!"])
+        return False
+
     response = OracleContract('GetOracleOutcome', [sentReqTxhash])
-    Require(response)
 
-    res = Deserialize(response)
+    # Require(response)
+    if not response:
+        Notify(["SaveGameResErr", "Get Response From Oracle Failed!"])
+        return False
 
+    a = Deserialize(response)
+    if a[2] != 0:
+        Notify(["SaveGameResErr", "Get Response From Oracle With Error!"])
+        return False
+    # Notify(["111", a])
+    b = Deserialize(a[0])
+
+    # Notify(["222", b])
+    c = b[0]
+    # Notify(["333", c])
+    gameIdList = []
+    # endTimeList = []
+    gameDiskIdList = []
+    gameDiskResultList = []
+    for game in c:
+        gameId = game[0]
+        gameIdList.append(gameId)
+        # endTime = game[1]
+        # endTimeList.append(endTime)
+        tmpDiskIdList = []
+        tmpDiskResList = []
+        tmp = game[2]
+        for gameDisk in tmp:
+            tmpDiskId = gameDisk[0]
+            tmpDiskRes = gameDisk[1]
+            tmpDiskIdList.append(tmpDiskId)
+            tmpDiskResList.append(tmpDiskRes)
+        gameDiskIdList.append(tmpDiskIdList)
+        gameDiskResultList.append(tmpDiskResList)
+
+    diskResMap = {}
+    gameIdLen = len(gameIdList)
+    gameIdIndex = 0
+    while gameIdIndex < gameIdLen:
+        gameId = gameIdList[gameIdIndex]
+        savedDiskIdList = getDiskIdList(gameId)
+        diskIdList = gameDiskIdList[gameIdIndex]
+        diskIdLen = len(diskIdList)
+        diskIdIndex = 0
+        while diskIdIndex < diskIdLen:
+            diskId = diskIdList[diskIdIndex]
+            Require(diskId == savedDiskIdList[diskIdIndex])
+            diskRes = gameDiskResultList[gameIdIndex][diskIdIndex]
+            if diskRes < -2 or diskRes > 2:
+                diskRes = -2
+            diskResMap[diskRes] = diskRes
+            diskIdIndex = diskIdIndex + 1
+        Put(GetContext(), concatKey(GAME_RES_PREFIX, gameId), Serialize(diskResMap))
+        gameIdIndex = gameIdIndex + 1
 
     # save the match/game result requesting from oracle contract to this contract
-    diskIdList = [1, 2, 3, 4]
-    diskResList = [-1, 0, 1, 2]
-    diskResMap = {
-        diskIdList[0]:-1,
-        diskIdList[1]: 0,
-        diskIdList[2]: 1,
-        diskIdList[3]: 2,
-                 }
-
-    Put(GetContext(), concatKey(GAME_RES_PREFIX, gameId), Serialize(diskResMap))
-    Notify(["saveGameResultByOracleRes", gameId, diskIdList, diskResList])
+    Notify(["saveGameResultByOracleRes", jsonIndex, gameDiskIdList, gameDiskResultList])
     return True
 
 
+def saveGameResultByHand(gameId, diskIdList, diskResList):
+    pass
 
-def endGame(gameId):
+
+def endGame(gameIdList):
     RequireWitness(Operater)
-    # make sure placing bets stage is over
-    Require(canPlaceBet(gameId) == False)
-    totalPayOut = 0
-    # maker sure the game results have been saved
-    diskResMapInfo = Get(GetContext(), concatKey(GAME_RES_PREFIX, gameId))
-    Require(diskResMapInfo)
-    diskResMap = Deserialize(diskResMapInfo)
-    diskIdListInfo = Get(GetContext(), concatKey(GAME_DISKID_PREFIX, gameId))
-    Require(diskIdListInfo)
-    diskIdList = Deserialize(diskIdListInfo)
     totalDiskProfitForDev = 0
-    for diskId in diskIdList:
-        # if the gameId-diskId game hasn't been ended yet.
-        if not Get(GetContext(), concatKey(concatKey(gameId, diskId), DISK_STATUS_KEY)):
-            diskRes = diskResMap[diskId]
-            diskProfitForDev = endDisk(gameId, diskId, diskRes)
-            totalDiskProfitForDev = Add(totalDiskProfitForDev, diskProfitForDev)
-            # mark the gameId-diskId game as end
-            Put(GetContext(), concatKey(concatKey(gameId, diskId), DISK_STATUS_KEY), 1)
+    for gameId in gameIdList:
+        # make sure placing bets stage is over
+        Require(canPlaceBet(gameId) == False)
+        # maker sure the game results have been saved
+        diskResMapInfo = Get(GetContext(), concatKey(GAME_RES_PREFIX, gameId))
+        Require(diskResMapInfo)
+        diskResMap = Deserialize(diskResMapInfo)
+
+        diskIdList = getDiskIdList(gameId)
+        for diskId in diskIdList:
+            # if the gameId-diskId game hasn't been settled yet.
+            if getDiskStatus(diskId) == 0:
+                diskRes = diskResMap[diskId]
+                diskProfitForDev = _endDisk(diskId, diskRes)
+                totalDiskProfitForDev = Add(totalDiskProfitForDev, diskProfitForDev)
+    Notify(["endGame", gameIdList,])
     # update the profit for dev
     _updateProfitForDev(totalDiskProfitForDev)
     return True
 
 
-def endDisk(gameId, diskId, diskRes):
+def endDiskByHand(diskIdList, diskResList):
+    RequireWitness(Operater)
+    totalDiskProfitForDev = 0
+    diskIdLen = len(diskIdList)
+    diskResLen = len(diskResList)
+    Require(diskIdLen == diskResLen)
+    diskIdIndex = 0
+    while diskIdIndex < diskIdLen:
+        diskId = diskIdList[diskIdIndex]
+        diskRes = diskResList[diskIdIndex]
+        diskProfitForDev = _endDisk( diskId, diskRes)
+        totalDiskProfitForDev = Add(totalDiskProfitForDev, diskProfitForDev)
+    # update the profit for dev
+    _updateProfitForDev(totalDiskProfitForDev)
+    return True
+
+
+def _endDisk(diskId, diskRes):
     """
     settle all the accounts within gameId-diskId disk bet.
     :param gameId:
     :param diskId:
-    :param diskRes: could be -1, 0, 1, 2
+    :param diskRes: could be -2, -1, 0, 1, 2
     :return: profit for dev
     """
     RequireWitness(Operater)
 
+    # Require(not getDiskStatus(diskId))
+    # Require(diskRes != -2)
+    if getDiskStatus(diskId) == 1 or diskRes == -2:
+        return 0
+
     if diskRes == AbortSide:
         # pay back the money to the players, respectively
-        _payBackToPlayers(gameId, diskId)
-        Notify(["endDisk", gameId, diskId, diskRes])
+        _payBackToPlayers(diskId)
+        Notify(["endDisk", diskId, diskRes])
         return 0
-    leftBetAmount = getDiskBetAmount(gameId, diskId, 1)
-    rightBetAmount = getDiskBetAmount(gameId, diskId, 2)
+    leftBetAmount = getDiskBetAmount(diskId, LeftSide)
+    rightBetAmount = getDiskBetAmount(diskId, RightSide)
+    tieBetAmount = getDiskBetAmount(diskId, TieSide)
+
+    # get winners list
+    winnersList = getDiskPlayersList(diskId, diskRes)
+    # if nobody wins:
+    if len(winnersList) == 0:
+        Notify(["endDisk", diskId, diskRes])
+        return Add(Add(leftBetAmount, rightBetAmount), tieBetAmount)
 
     odds = 0
     FeePercentage = getFeePercentage()
     if diskRes == TieSide:
-        # TODO
-        pass
+        odds = Add(leftBetAmount, rightBetAmount) * Magnitude * (100 - FeePercentage) / tieBetAmount
     if diskRes == LeftSide:
-        odds = rightBetAmount * Magnitude  * (100 - FeePercentage) / leftBetAmount
+        odds = Add(rightBetAmount, tieBetAmount) * Magnitude  * (100 - FeePercentage) / leftBetAmount
     if diskRes == RightSide:
-        odds = leftBetAmount * Magnitude * (100 - FeePercentage) / rightBetAmount
-
-    # get winners list
-    winnersList = getDiskPlayersList(gameId, diskId, diskRes)
-    if len(winnersList) == 0:
-        Notify(["endDisk", gameId, diskId, diskRes])
-        return Add(leftBetAmount, rightBetAmount)
+        odds = Add(leftBetAmount, tieBetAmount) * Magnitude * (100 - FeePercentage) / rightBetAmount
 
     totalPayOut = 0
     winnerPayAmountList = []
     for winner in winnersList:
-        winnerBetBalance = getDiskBetBalance(gameId, diskId, diskRes, winner)
+        winnerBetBalance = getDiskBetBalance(diskId, diskRes, winner)
         payToWinner = winnerBetBalance * odds / Magnitude + winnerBetBalance
         totalPayOut = Add(totalPayOut, payToWinner)
         Require(_transferONGFromContact(winner, payToWinner))
         winnerPayAmountList.append([winner, payToWinner])
-    Notify(["endDisk", gameId, diskId, diskRes, winnerPayAmountList])
+
+    # mark the diskId game as end
+    Put(GetContext(), concatKey(DISK_STATUS_PERFIX, diskId), 1)
+
+    Notify(["endDisk", diskId, diskRes, winnerPayAmountList])
     return Sub(Add(rightBetAmount, leftBetAmount), totalPayOut)
 
 
@@ -511,15 +632,26 @@ def getDevProfit(devAddr):
 def getFeePercentage():
     return Get(GetContext(), FEE_PERCENTAGE_KEY)
 
-def getDiskBetAmount(gameId, diskId, betStatus):
-    return Get(GetContext(), concatKey(concatKey(gameId, diskId), betStatus))
+def getDiskIdList(gameId):
+    diskIdListInfo = Get(GetContext(), concatKey(GAME_DISKID_LIST_PREFIX, gameId))
+    if not diskIdListInfo:
+        return []
+    else:
+        return Deserialize(diskIdListInfo)
 
-def getDiskBetBalance(gameId, diskId, betStatus, address):
-    return Get(GetContext(), concatKey(concatKey(gameId, diskId), concatKey(address, betStatus)))
+def getGameBetEndTime(gameId):
+    return Get(GetContext(), concatKey(GAME_BET_ENDTIME_PREFIX, gameId))
 
 
-def getDiskPlayersList(gameId, diskId, betStatus):
-    playersListInfo = Get(GetContext(), concatKey(concatKey(gameId, diskId), betStatus))
+def getDiskBetAmount(diskId, betStatus):
+    return Get(GetContext(), concatKey(concatKey(DISK_PLAYERS_BET_AMOUNT_PREFIX, diskId), betStatus))
+
+def getDiskBetBalance(diskId, betStatus, address):
+    return Get(GetContext(), concatKey(concatKey(DISK_PLAYER_BET_BALANCE_PREFIX, diskId), concatKey(address, betStatus)))
+
+
+def getDiskPlayersList(diskId, betStatus):
+    playersListInfo = Get(GetContext(), concatKey(concatKey(DISK_BET_PLAYER_LIST_PREFIX, diskId), betStatus))
     if not playersListInfo:
         return []
     else:
@@ -534,16 +666,15 @@ def canPlaceBet(gameId):
 
 
 
-def getDiskGameStatus(gameId, diskId):
+def getDiskStatus(diskId):
     """
-    :param gameId:
     :param diskId:
     :return:
     0 means the gameId-diskId has NOT been ended yet.
     1 means the gameId-diskId has already been ended.
     ENDED means all the players' accounts have been settled.
     """
-    return Get(GetContext(), concatKey(concatKey(gameId, diskId), DISK_STATUS_KEY))
+    return Get(GetContext(), concatKey(DISK_STATUS_PERFIX, diskId))
 
 
 def _checkInList(el, eList):
@@ -552,19 +683,15 @@ def _checkInList(el, eList):
             return True
     return False
 
-def _payBackToPlayers(gameId, diskId):
-    leftSidePlayersList = getDiskPlayersList(gameId, diskId, 1)
-    if len(leftSidePlayersList) != 0:
-        # pay back to the left side players
-        for leftSidePlayer in leftSidePlayersList:
-            leftSidePlayerBetBalance = getDiskPlayersList(gameId, diskId, 1)
-            Require(_transferONGFromContact(leftSidePlayer, leftSidePlayerBetBalance))
-    rightSidePlayersList = getDiskPlayersList(gameId, diskId, 2)
-    if len(rightSidePlayersList) != 0:
-        # pay back to the right side players
-        for rightSidePlayer in rightSidePlayersList:
-            rightSidePlayerBetBalance = getDiskPlayersList(gameId, diskId, 2)
-            Require(_transferONGFromContact(rightSidePlayer, rightSidePlayerBetBalance))
+def _payBackToPlayers(diskId):
+    betStatusList = [TieSide, LeftSide, RightSide]
+    for betStatus in betStatusList:
+        sidePlayersList = getDiskPlayersList(diskId, betStatus)
+        if len(sidePlayersList) != 0:
+            # pay back to the betStatus side players
+            for sidePlayer in sidePlayersList:
+                sidePlayerBetBalance = getDiskBetBalance(diskId, betStatus, sidePlayer)
+                Require(_transferONGFromContact(sidePlayer, sidePlayerBetBalance))
     return True
 
 def _updateProfitForDev(profitPorDev):
@@ -673,7 +800,7 @@ def getOracleReq(gameId):
                 "params":
                 {
                     "data":
-                    
+                    [
                         {
                             "type": "Array",
                             "path": ["data", "game_game_array"],
@@ -717,7 +844,7 @@ def getOracleReq(gameId):
                                 }
                             ]
                         }
-                    
+                    ]
                 }
             }
         ]
