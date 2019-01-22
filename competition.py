@@ -511,7 +511,25 @@ def saveGameResultByOracleRes(jsonIndex):
 
 
 def saveGameResultByHand(gameId, diskIdList, diskResList):
-    pass
+    RequireWitness(Operater)
+    diskResMapInfo = Get(GetContext(), concatKey(GAME_RES_PREFIX, gameId))
+    if not diskResMapInfo:
+        Notify(["saveGameResultByHandErr", "Should Request Game Result First!"])
+        return False
+    diskResMap = Deserialize(diskResMapInfo)
+    gameDiskIdList = getDiskIdList(gameId)
+    diskIdLen = len(diskIdList)
+    diskIdIndex = 0
+    while diskIdIndex < diskIdLen:
+        diskId = diskIdList[diskIdIndex]
+        Require(_checkInList(diskId, gameDiskIdList))
+        Require(diskResMapInfo[diskId] == -2)
+        diskResMap[diskId] = diskResList[diskIdIndex]
+    Put(GetContext(), concatKey(GAME_RES_PREFIX, gameId), Serialize(diskResMap))
+    Notify(["saveGameResultByHand", gameId, diskIdList, diskResList])
+    return True
+
+
 
 
 def endGame(gameIdList):
