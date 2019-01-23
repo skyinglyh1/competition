@@ -602,6 +602,8 @@ def _endDisk(diskId, diskRes):
         return 0
 
     if diskRes == AbortSide:
+        # mark the diskId game as end
+        Put(GetContext(), concatKey(DISK_STATUS_PERFIX, diskId), 1)
         # pay back the money to the players, respectively
         _payBackToPlayers(diskId)
         Notify(["endDisk", diskId, diskRes])
@@ -614,6 +616,8 @@ def _endDisk(diskId, diskRes):
     winnersList = getDiskPlayersList(diskId, diskRes)
     # if nobody wins:
     if len(winnersList) == 0:
+        # mark the diskId game as end
+        Put(GetContext(), concatKey(DISK_STATUS_PERFIX, diskId), 1)
         Notify(["endDisk", diskId, diskRes])
         return Add(Add(leftBetAmount, rightBetAmount), tieBetAmount)
 
