@@ -534,7 +534,7 @@ def endGame(gameIdList):
                 diskRes = diskResMap[diskId]
                 diskProfitForDev = _endDisk(diskId, diskRes)
                 totalDiskProfitForDev = Add(totalDiskProfitForDev, diskProfitForDev)
-    Notify(["endGame", gameIdList,])
+    Notify(["endGame", gameIdList])
     # update the profit for dev
     _updateProfitForDev(totalDiskProfitForDev)
     return True
