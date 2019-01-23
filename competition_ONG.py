@@ -706,9 +706,16 @@ def getDiskResult(gameId, diskId):
     :param gameId:
     :param diskId:
     :return:
-    3 means gameId has not been initialized.
-    4 means gameId has been initialized, yet diskId illegal.
-    5 means dev should get game results through Oracle first by invoking saveGameResultByOracleRes method.
+    -2 or 254 means: the diskId has already been initialized, yet
+                    the diskId result hasn't been recorded into json.
+                    Meanwhile,saveGameResultByOracleRes has already been invoked.
+    -1 or 255 means: abortion
+    0 means: tie
+    1 means: left side wins
+    2 means: right side wins
+    3 means: gameId has not been initialized.
+    4 means: gameId has been initialized, yet diskId illegal.
+    5 means: dev should get game results through Oracle first by invoking saveGameResultByOracleRes method.
     """
     # make sure address can place bet, otherwise, raise exception
     Require(canPlaceBet(gameId) == True)
