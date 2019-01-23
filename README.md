@@ -89,11 +89,13 @@ ongAmount为用户投注和竞猜金额
 27. ```endGame(gameIdList)```,gameIdList为项目方想要结束的对局gameId的List.
 
 28. ```saveGameResultByHand(gameId, diskIdList, diskResList)```, 项目方想要手动录入比赛结果到赛事合约内部需要调用此函数。
+```
 gameId为指定对局id.
 diskIdList为该对局下想要手动录入的盘口id组成的List.
 diskResList为想要录入多个盘口id对应的比赛结果，应于diskIdList一一对应。
-
+```
 29. ```endDisksByHand(gameId, diskIdList)```,项目方想要手动结算几个特殊未结算的盘口。
+```
 gameId为这些盘口对应的对局id.
 diskIdList为这些盘口组成的list.
-
+```
