@@ -444,6 +444,7 @@ def saveGameResultByOracleRes(jsonIndex):
     """
     RequireWitness(Operater)
 
+
     # make sure the request has been sent out to the oracle contract
     sentReqTxhash = Get(GetContext(), concatKey(SENTREQHASH_SAVERES_PREFIX, jsonIndex))
 
@@ -494,6 +495,7 @@ def saveGameResultByOracleRes(jsonIndex):
     gameIdIndex = 0
     while gameIdIndex < gameIdLen:
         gameId = gameIdList[gameIdIndex]
+        Require(canPlaceBet(gameId) == False)
         savedDiskIdList = getDiskIdList(gameId)
         diskIdList = gameDiskIdList[gameIdIndex]
         diskIdLen = len(diskIdList)
@@ -688,7 +690,7 @@ def getDiskPlayersList(diskId, betStatus):
 def canPlaceBet(gameId):
     """
     :param gameId:
-    :return: 0 means can NOT place bets, 1 means CAN place bets.
+    :return: False means can NOT place bets, True means CAN place bets.
     """
     return GetTime() < Get(GetContext(), concatKey(gameId, GAME_BET_ENDTIME_PREFIX))
 
