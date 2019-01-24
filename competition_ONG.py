@@ -308,7 +308,7 @@ def init():
     RequireWitness(Operater)
     inited = Get(GetContext(), INIT_KEY)
     if not inited:
-        setFeePercentage(5)
+        setFeePercentage(2)
     return True
 
 def setFeePercentage(feePercentage):
@@ -443,7 +443,7 @@ def placeBet(address, gameId, diskId, betStatus, ongAmount):
     Put(GetContext(), concatKey(concatKey(DISK_PLAYER_BET_BALANCE_PREFIX, diskId), concatKey(address, betStatus)), Add(getDiskBetBalance(diskId, betStatus, address), ongAmount))
 
     # update the disk bet amount
-    Put(GetContext(), concatKey(concatKey(DISK_PLAYERS_BET_AMOUNT_PREFIX, diskId), betStatus), Add(getDiskBetAmount(gameId, diskId, betStatus), ongAmount))
+    Put(GetContext(), concatKey(concatKey(DISK_PLAYERS_BET_AMOUNT_PREFIX, diskId), betStatus), Add(getDiskBetAmount(diskId, betStatus), ongAmount))
 
     Notify(["placeBet", address, gameId, diskId, betStatus, ongAmount])
 
@@ -633,17 +633,17 @@ def _endDisk(diskId, diskRes):
     odds = 0
     FeePercentage = getFeePercentage()
     if diskRes == TieSide:
-        odds = Add(leftBetAmount, rightBetAmount) * Magnitude * (100 - FeePercentage) / tieBetAmount
+        odds = Div(Div(Mul(Mul(Add(leftBetAmount, rightBetAmount), Magnitude), Sub((100, FeePercentage))), tieBetAmount), 100)
     if diskRes == LeftSide:
-        odds = Add(rightBetAmount, tieBetAmount) * Magnitude  * (100 - FeePercentage) / leftBetAmount
+        odds = Div(Div(Mul(Mul(Add(rightBetAmount, tieBetAmount), Magnitude), Sub((100, FeePercentage))), leftBetAmount), 100)
     if diskRes == RightSide:
-        odds = Add(leftBetAmount, tieBetAmount) * Magnitude * (100 - FeePercentage) / rightBetAmount
+        odds = Div(Div(Mul(Mul(Add(leftBetAmount, tieBetAmount), Magnitude), Sub((100, FeePercentage))), rightBetAmount), 100)
 
     totalPayOut = 0
     winnerPayAmountList = []
     for winner in winnersList:
         winnerBetBalance = getDiskBetBalance(diskId, diskRes, winner)
-        payToWinner = winnerBetBalance * odds / Magnitude + winnerBetBalance
+        payToWinner = Add(Div(Mul(winnerBetBalance, odds), Magnitude), winnerBetBalance)
         totalPayOut = Add(totalPayOut, payToWinner)
         Require(_transferONGFromContact(winner, payToWinner))
         winnerPayAmountList.append([winner, payToWinner])
@@ -704,7 +704,7 @@ def canPlaceBet(gameId):
     :param gameId:
     :return: False means can NOT place bets, True means CAN place bets.
     """
-    return GetTime() < Get(GetContext(), concatKey(gameId, GAME_BET_ENDTIME_PREFIX))
+    return GetTime() < Get(GetContext(), concatKey(GAME_BET_ENDTIME_PREFIX, gameId))
 
 
 def getDiskResult(gameId, diskId):
