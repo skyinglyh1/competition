@@ -101,3 +101,9 @@ diskResList为想要录入多个盘口id对应的比赛结果，应于diskIdList
 gameId为这些盘口对应的对局id.
 diskIdList为这些盘口组成的list.
 ```
+
+30. ```resetGameBetEndTime(gameId, newBetEndTime)```, 项目方想要手动更改某对局的下注截止时间。
+```
+gameId 为某对局id
+newBetEndTime为该对局新的下注截止时间
+```

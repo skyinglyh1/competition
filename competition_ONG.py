@@ -545,7 +545,7 @@ def endGame(gameIdList):
                 diskRes = diskResMap[diskId]
                 diskProfitForDev = _endDisk(diskId, diskRes)
                 totalDiskProfitForDev = Add(totalDiskProfitForDev, diskProfitForDev)
-    Notify(["endGame", gameIdList])
+    # Notify(["endGame", gameIdList])
     # update the profit for dev
     _updateProfitForDev(totalDiskProfitForDev)
     return True
@@ -727,7 +727,7 @@ def getDiskResult(gameId, diskId):
     12 means: dev should get game results through Oracle first by invoking saveGameResultByOracleRes method.
     """
     # make sure address can place bet, otherwise, raise exception
-    Require(canPlaceBet(gameId) == True)
+    Require(canPlaceBet(gameId) == False)
 
     diskIdListInfo = Get(GetContext(), concatKey(GAME_DISKID_LIST_PREFIX, gameId))
 
