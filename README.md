@@ -54,14 +54,16 @@ json文件内容应包含不同的对局及不同对局下对应的盘口及不�
 21. ```getDiskResult(gameId, diskId)``` 根据对局gameId及盘口diskId来查询该diskId盘口的比赛结果，返回：
 
 ```
-    -2 或254 表示 盘口已经初始化，但比赛结果被录入json,此时，已经调用了```saveGameResultByOracleRes```函数。
-    -1 或255 表示 流盘
+    
     0 表示 平局
     1 表示 左赢
     2 表示 右赢
-    3 表示 gameId还未被初始化
-    4 表示 gameId已被初始化，但diskId不合法
-    5 表示 Dev应该先调用```saveGameResultByOracleRes```去获取比赛结果。
+    
+    8 表示 流盘
+    9 表示 盘口已经初始化，但比赛结果被录入json,此时，已经调用了```saveGameResultByOracleRes```函数。
+    10 表示 gameId还未被初始化
+    11 表示 gameId已被初始化，但diskId不合法
+    12 表示 Dev应该先调用```saveGameResultByOracleRes```去获取比赛结果。
 ```
 
 22. ```getDiskStatus(diskId)```根据diskId查询某盘口是否已经被结算，0表示未结算，1表示已结算。结算也正当于盘口竞猜是否结束。

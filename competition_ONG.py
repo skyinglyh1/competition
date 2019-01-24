@@ -700,16 +700,21 @@ def getDiskResult(gameId, diskId):
     :param gameId:
     :param diskId:
     :return:
-    -2 or 254 means: the diskId has already been initialized, yet
-                    the diskId result hasn't been recorded into json.
-                    Meanwhile,saveGameResultByOracleRes has already been invoked.
-    -1 or 255 means: abortion
+
+
     0 means: tie
     1 means: left side wins
     2 means: right side wins
-    3 means: gameId has not been initialized.
-    4 means: gameId has been initialized, yet diskId illegal.
-    5 means: dev should get game results through Oracle first by invoking saveGameResultByOracleRes method.
+
+
+    8 means: abortion
+    9 means: the diskId has already been initialized, yet
+             the diskId result hasn't been recorded into json.
+             Meanwhile, saveGameResultByOracleRes has already been invoked.
+
+    10 means: gameId has not been initialized.
+    11 means: gameId has been initialized, yet diskId illegal.
+    12 means: dev should get game results through Oracle first by invoking saveGameResultByOracleRes method.
     """
     # make sure address can place bet, otherwise, raise exception
     Require(canPlaceBet(gameId) == True)
@@ -717,16 +722,16 @@ def getDiskResult(gameId, diskId):
     diskIdListInfo = Get(GetContext(), concatKey(GAME_DISKID_LIST_PREFIX, gameId))
 
     if not diskIdListInfo:
-        return 3
+        return 10
     diskIdList = Deserialize(diskIdListInfo)
     # make sure the passing by diskId is legal
     # Require(_checkInList(diskId, diskIdList))
     if _checkInList(diskId, diskIdList) == False:
-        return 4
+        return 11
 
     diskResMapInfo = Get(GetContext(), concatKey(GAME_RES_PREFIX, gameId))
     if not diskResMapInfo:
-        return 5
+        return 12
     diskResMap = Deserialize(diskResMapInfo)
     return diskResMap[diskId]
 
