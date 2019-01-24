@@ -862,7 +862,7 @@ def getOracleReq(jsonIndex):
     }	
     """
     req = concat(reqhead, body)
-    Notify(["111", req])
+    # Notify(["111", req])
     # req = """
     # {
     #     "scheduler":

@@ -1,4 +1,26 @@
-此文档可作为competition_ONG.py合约的接口文档及使用介绍。 smartX上应使用2.0编译器。
+此文档可作为competition_ONG.py合约的接口文档及使用介绍。 、
+## 注意事项：
+
+a. smartX上应使用2.0编译器。
+
+b. 在测试网上测试时，需要将
+```
+OracleContract = RegisterAppCall('b108e1d2a7e8db11cb2150ccf1788d56a243996d', 'operation', 'args')
+```
+更改为
+```
+OracleContract = RegisterAppCall('e0d635c7eb2c5eaa7d2207756a4c03a89790934a', 'operation', 'args')
+```
+如果是主网，需要改为
+```
+OracleContract = RegisterAppCall('a6ee997b142b002d49670ab73803403b09a23fa0', 'operation', 'args')
+```
+
+c. Dev1 和 Dev2为利润分成地址。
+
+d. Operator为合约管理员，请确保管理员帐户内有充足的ONG以供管理员执行合约函数时使用。
+
+
 
 ## 流程：
 
