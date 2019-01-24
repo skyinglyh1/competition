@@ -153,7 +153,7 @@ ONGMagnitude = 1000000000
 Magnitude = 1000000000000000000000000000000
 
 
-OracleContract = RegisterAppCall('e0d635c7eb2c5eaa7d2207756a4c03a89790934a', 'operation', 'args')
+OracleContract = RegisterAppCall('b108e1d2a7e8db11cb2150ccf1788d56a243996d', 'operation', 'args')
 SelfContractAddress = GetExecutingScriptHash()
 
 DEV_PROFIT_PREFIX = "DEV"
@@ -182,7 +182,8 @@ TieSide = 0
 LeftSide = 1
 RightSide = 2
 
-SidesList = [DefaultSide, TieSide, LeftSide, RightSide, AbortSide]
+# SidesList = [DefaultSide, TieSide, LeftSide, RightSide, AbortSide]
+SidesList = [9, 0, 1, 2, 8]
 
 Dev1Percentage = 80
 
@@ -205,6 +206,12 @@ def Main(operation, args):
             return False
         jsonIndex = args[0]
         return createGameByOracleRes(jsonIndex)
+    if operation == "resetGameBetEndTime":
+        if len(args) != 2:
+            return False
+        gameId = args[0]
+        newBetEndTime = args[1]
+        return resetGameBetEndTime(gameId, newBetEndTime)
     if operation == "placeBet":
         if len(args) != 5:
             return False
@@ -217,8 +224,8 @@ def Main(operation, args):
     if operation == "saveGameResultByOracleRes":
         if len(args) != 1:
             return False
-        gameId = args[0]
-        return saveGameResultByOracleRes(gameId)
+        jsonIndex = args[0]
+        return saveGameResultByOracleRes(jsonIndex)
     if operation == "endGame":
         if len(args) != 1:
             return False
@@ -395,6 +402,14 @@ def createGameByOracleRes(jsonIndex):
     return True
 
 
+def resetGameBetEndTime(gameId, newBetEndTime):
+    RequireWitness(Operater)
+    Require(getGameBetEndTime(gameId) > 0)
+    Put(GetContext(), concatKey(GAME_BET_ENDTIME_PREFIX, gameId), newBetEndTime)
+    Notify(["resetBetEndTime", gameId, newBetEndTime])
+    return True
+
+
 def placeBet(address, gameId, diskId, betStatus, ongAmount):
     RequireWitness(address)
     # make sure address can place bet, otherwise, raise exception
@@ -500,7 +515,7 @@ def saveGameResultByOracleRes(jsonIndex):
             diskRes = gameDiskResultList[gameIdIndex][diskIdIndex]
             # save the match/game result requesting from oracle contract to this contract
             Require(_checkInList(diskRes, SidesList))
-            diskResMap[diskId] = AbortSide
+            diskResMap[diskId] = diskRes
             diskIdIndex = diskIdIndex + 1
         Put(GetContext(), concatKey(GAME_RES_PREFIX, gameId), Serialize(diskResMap))
         gameIdIndex = gameIdIndex + 1
@@ -551,7 +566,7 @@ def saveGameResultByHand(gameId, diskIdList, diskResList):
         diskId = diskIdList[diskIdIndex]
         Require(_checkInList(diskId, gameDiskIdList))
         Require(getDiskStatus(diskId) == 0)
-        # Require(diskResMapInfo[diskId] == DefaultSide)
+        # Require(diskResMap[diskId] == DefaultSide)
         diskResMap[diskId] = diskResList[diskIdIndex]
         diskIdIndex = diskIdIndex + 1
     Put(GetContext(), concatKey(GAME_RES_PREFIX, gameId), Serialize(diskResMap))
@@ -566,7 +581,7 @@ def endDisksByHand(gameId, diskIdList):
     totalDiskProfitForDev = 0
     diskIdLen = len(diskIdList)
     diskResMapInfo = Get(GetContext(), concatKey(GAME_RES_PREFIX, gameId))
-    Require(not diskResMapInfo)
+    Require(diskResMapInfo)
     diskResMap = Deserialize(diskResMapInfo)
     diskIdIndex = 0
     while diskIdIndex < diskIdLen:
@@ -653,8 +668,6 @@ def devWithdraw(devAddr):
     return True
 
 
-
-
 def getDevProfit(devAddr):
     return Get(GetContext(), concatKey(DEV_PROFIT_PREFIX, devAddr))
 
@@ -700,12 +713,9 @@ def getDiskResult(gameId, diskId):
     :param gameId:
     :param diskId:
     :return:
-
-
     0 means: tie
     1 means: left side wins
     2 means: right side wins
-
 
     8 means: abortion
     9 means: the diskId has already been initialized, yet
@@ -862,7 +872,7 @@ def getOracleReq(jsonIndex):
               "type": "httpGet",
               "params": 
               {
-                "url": "http://139.217.129.2:10338/1.json"
+                "url": "http://localhost:5000"
               }
             },
             {
