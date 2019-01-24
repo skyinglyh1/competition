@@ -324,9 +324,11 @@ def setFeePercentage(feePercentage):
 def sendReqToOracle(jsonIndex):
     """
     call oracle to get format or info of Games, including the, diskId
+    :param jsonIndex: Int
+    :return:
     """
     RequireWitness(Operater)
-    jsonIndex = str(jsonIndex)
+
     req = getOracleReq(jsonIndex)
 
     txhash = GetTransactionHash(GetScriptContainer())
@@ -341,8 +343,12 @@ def sendReqToOracle(jsonIndex):
 
 
 def createGameByOracleRes(jsonIndex):
+    """
+    :param jsonIndex: Int
+    :return:
+    """
     RequireWitness(Operater)
-    jsonIndex = str(jsonIndex)
+
     # # make sure the result hasn't be saved before
     # Require(not getGameResult(gameId))
 
@@ -452,11 +458,10 @@ def placeBet(address, gameId, diskId, betStatus, ongAmount):
 def saveGameResultByOracleRes(jsonIndex):
     """
     Before invoke this method, the sendReqToOracle(jsonIndex) should be invoked again to store the game and disk results.
-    :param jsonIndex:
+    :param jsonIndex: Int
     :return:
     """
     RequireWitness(Operater)
-    jsonIndex = str(jsonIndex)
     # make sure the request has been sent out to the oracle contract
     sentReqTxhash = Get(GetContext(), concatKey(SENTREQHASH_SAVERES_PREFIX, jsonIndex))
 
@@ -788,7 +793,7 @@ def getOracleReq(jsonIndex):
     :return:
     """
 
-    url = concat(concat('"http://47.88.230.168:8886/api/publish-match?gameMatchRecordId=', jsonIndex), '"')
+    url = concat(concat('"http://47.88.230.168:8886/api/publish-match?gameMatchRecordId=', str(jsonIndex)), '"')
     reqtmp = """{
     		"scheduler":{
     			"type": "runAfter",
