@@ -361,9 +361,12 @@ def createGameByOracleRes(jsonIndex):
     if a[2] != 0:
         Notify(["createGameErr", "Get Response From Oracle With Error!"])
         return False
+    # Notify(["111", a])
     b = Deserialize(a[0])
 
+    # Notify(["222", b])
     c = b[0]
+    # Notify(["333", c])
     gameIdList = []
     endTimeList = []
     gameDiskIdList = []
@@ -412,7 +415,6 @@ def placeBet(address, gameId, diskId, betStatus, ongAmount):
     # make sure address can place bet, otherwise, raise exception
     Require(canPlaceBet(gameId) == True)
 
-    Require(not getDiskStatus(diskId))
     diskIdListInfo = Get(GetContext(), concatKey(GAME_DISKID_LIST_PREFIX, gameId))
 
     if not diskIdListInfo:
@@ -588,7 +590,9 @@ def endDisksByHand(gameId, diskIdList):
         diskProfitForDev = _endDisk(diskId, diskRes)
         totalDiskProfitForDev = Add(totalDiskProfitForDev, diskProfitForDev)
         diskIdIndex = diskIdIndex + 1
+        Notify(["444", diskProfitForDev, totalDiskProfitForDev,diskIdIndex])
     # update the profit for dev
+    Notify(["555"])
     _updateProfitForDev(totalDiskProfitForDev)
     return True
 
@@ -600,13 +604,15 @@ def _endDisk(diskId, diskRes):
     :param diskRes: could be DefaultSide:9, AbortSide:8, TieSide:0, LeftSide:1, RightSide:2
     :return: profit for dev
     """
+    Notify(["111", diskId, diskRes])
     RequireWitness(Operater)
     Require(_checkInList(diskRes, SidesList))
-
+    
     # Require(not getDiskStatus(diskId))
     # Require(diskRes != DefaultSide)
     if getDiskStatus(diskId) == 1 or diskRes == DefaultSide:
         return 0
+    Notify(["222"])
     if diskRes == AbortSide:
         # mark the diskId game as end
         Put(GetContext(), concatKey(DISK_STATUS_PERFIX, diskId), 1)
@@ -617,6 +623,7 @@ def _endDisk(diskId, diskRes):
     leftBetAmount = getDiskBetAmount(diskId, LeftSide)
     rightBetAmount = getDiskBetAmount(diskId, RightSide)
     tieBetAmount = getDiskBetAmount(diskId, TieSide)
+    Notify(["333"])
     # get winners list
     winnersList = getDiskPlayersList(diskId, diskRes)
     # if nobody wins:
@@ -635,11 +642,14 @@ def _endDisk(diskId, diskRes):
     if diskRes == RightSide:
         odds = Div(Div(Mul(Mul(Add(leftBetAmount, tieBetAmount), Magnitude), Sub(100, FeePercentage)), rightBetAmount), 100)
     # odds should be 20000 * 1000000000000000000000000000000  * 98 / 10000 / 100 = 1960000000000000000000000000000 or 0000004050d2559427001abd18
+    Notify(["444", odds])
     totalPayOut = 0
     winnerPayAmountList = []
     for winner in winnersList:
         winnerBetBalance = getDiskBetBalance(diskId, diskRes, winner)
+        Notify(["555", winnerBetBalance])
         payToWinner = Add(Div(Mul(winnerBetBalance, odds), Magnitude), winnerBetBalance)
+        Notify(["666", payToWinner])
         totalPayOut = Add(totalPayOut, payToWinner)
         Require(_transferONGFromContact(winner, payToWinner))
         winnerPayAmountList.append([winner, payToWinner])
