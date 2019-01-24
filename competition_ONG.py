@@ -241,9 +241,9 @@ def Main(operation, args):
     if operation == "endDisksByHand":
         if len(args) != 2:
             return False
-        diskIdList = args[0]
-        diskResList = args[1]
-        return endDisksByHand(diskIdList, diskResList)
+        gameId = args[0]
+        diskIdList = args[1]
+        return endDisksByHand(gameId, diskIdList)
     if operation == "devWithdraw":
         if len(args) != 1:
             return False
@@ -297,7 +297,7 @@ def Main(operation, args):
         gameId = args[0]
         diskId = args[1]
         return getDiskResult(gameId, diskId)
-    if operation == "getDiskGameStatus":
+    if operation == "getDiskStatus":
         if len(args) != 1:
             return False
         diskId = args[0]
@@ -361,12 +361,9 @@ def createGameByOracleRes(jsonIndex):
     if a[2] != 0:
         Notify(["createGameErr", "Get Response From Oracle With Error!"])
         return False
-    # Notify(["111", a])
     b = Deserialize(a[0])
 
-    # Notify(["222", b])
     c = b[0]
-    # Notify(["333", c])
     gameIdList = []
     endTimeList = []
     gameDiskIdList = []
@@ -415,6 +412,7 @@ def placeBet(address, gameId, diskId, betStatus, ongAmount):
     # make sure address can place bet, otherwise, raise exception
     Require(canPlaceBet(gameId) == True)
 
+    Require(not getDiskStatus(diskId))
     diskIdListInfo = Get(GetContext(), concatKey(GAME_DISKID_LIST_PREFIX, gameId))
 
     if not diskIdListInfo:
@@ -457,7 +455,6 @@ def saveGameResultByOracleRes(jsonIndex):
     :return:
     """
     RequireWitness(Operater)
-
 
     # make sure the request has been sent out to the oracle contract
     sentReqTxhash = Get(GetContext(), concatKey(SENTREQHASH_SAVERES_PREFIX, jsonIndex))
@@ -513,8 +510,9 @@ def saveGameResultByOracleRes(jsonIndex):
             # make sure gameId is consistent with that provided within response
             Require(diskId == savedDiskIdList[diskIdIndex])
             diskRes = gameDiskResultList[gameIdIndex][diskIdIndex]
-            # save the match/game result requesting from oracle contract to this contract
+
             Require(_checkInList(diskRes, SidesList))
+            # save the match/game result requesting from oracle contract to this contract
             diskResMap[diskId] = diskRes
             diskIdIndex = diskIdIndex + 1
         Put(GetContext(), concatKey(GAME_RES_PREFIX, gameId), Serialize(diskResMap))
@@ -553,6 +551,7 @@ def endGame(gameIdList):
 
 def saveGameResultByHand(gameId, diskIdList, diskResList):
     RequireWitness(Operater)
+    Require(canPlaceBet(gameId) == False)
     diskResMapInfo = Get(GetContext(), concatKey(GAME_RES_PREFIX, gameId))
     if not diskResMapInfo:
         Notify(["saveGameResultByHandErr", "Should Request Game Result First!"])
@@ -576,8 +575,7 @@ def saveGameResultByHand(gameId, diskIdList, diskResList):
 
 def endDisksByHand(gameId, diskIdList):
     RequireWitness(Operater)
-
-    # diskResList = getd
+    Require(canPlaceBet(gameId) == False)
     totalDiskProfitForDev = 0
     diskIdLen = len(diskIdList)
     diskResMapInfo = Get(GetContext(), concatKey(GAME_RES_PREFIX, gameId))
@@ -609,7 +607,6 @@ def _endDisk(diskId, diskRes):
     # Require(diskRes != DefaultSide)
     if getDiskStatus(diskId) == 1 or diskRes == DefaultSide:
         return 0
-
     if diskRes == AbortSide:
         # mark the diskId game as end
         Put(GetContext(), concatKey(DISK_STATUS_PERFIX, diskId), 1)
@@ -620,7 +617,6 @@ def _endDisk(diskId, diskRes):
     leftBetAmount = getDiskBetAmount(diskId, LeftSide)
     rightBetAmount = getDiskBetAmount(diskId, RightSide)
     tieBetAmount = getDiskBetAmount(diskId, TieSide)
-
     # get winners list
     winnersList = getDiskPlayersList(diskId, diskRes)
     # if nobody wins:
@@ -633,12 +629,12 @@ def _endDisk(diskId, diskRes):
     odds = 0
     FeePercentage = getFeePercentage()
     if diskRes == TieSide:
-        odds = Div(Div(Mul(Mul(Add(leftBetAmount, rightBetAmount), Magnitude), Sub((100, FeePercentage))), tieBetAmount), 100)
+        odds = Div(Div(Mul(Mul(Add(leftBetAmount, rightBetAmount), Magnitude), Sub(100, FeePercentage)), tieBetAmount), 100)
     if diskRes == LeftSide:
-        odds = Div(Div(Mul(Mul(Add(rightBetAmount, tieBetAmount), Magnitude), Sub((100, FeePercentage))), leftBetAmount), 100)
+        odds = Div(Div(Mul(Mul(Add(rightBetAmount, tieBetAmount), Magnitude), Sub(100, FeePercentage)), leftBetAmount), 100)
     if diskRes == RightSide:
-        odds = Div(Div(Mul(Mul(Add(leftBetAmount, tieBetAmount), Magnitude), Sub((100, FeePercentage))), rightBetAmount), 100)
-
+        odds = Div(Div(Mul(Mul(Add(leftBetAmount, tieBetAmount), Magnitude), Sub(100, FeePercentage)), rightBetAmount), 100)
+    # odds should be 20000 * 1000000000000000000000000000000  * 98 / 10000 / 100 = 1960000000000000000000000000000 or 0000004050d2559427001abd18
     totalPayOut = 0
     winnerPayAmountList = []
     for winner in winnersList:
@@ -776,6 +772,7 @@ def _payBackToPlayers(diskId):
 
 def _updateProfitForDev(profitPorDev):
     RequireWitness(Operater)
+    Notify(["666"])
     dev1Share = Div(Mul(profitPorDev, Dev1Percentage), 100)
     Put(GetContext(), concatKey(DEV_PROFIT_PREFIX, Dev1), Add(getDevProfit(Dev1), dev1Share))
     Put(GetContext(), concatKey(DEV_PROFIT_PREFIX, Dev2), Add(getDevProfit(Dev2), Sub(profitPorDev, dev1Share)))
