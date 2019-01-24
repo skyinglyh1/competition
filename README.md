@@ -1,4 +1,4 @@
-此文档可作为competition_ONG.py合约的接口文档及使用介绍。
+此文档可作为competition_ONG.py合约的接口文档及使用介绍。 smartX上应使用2.0编译器。
 
 ## 流程：
 

@@ -1,15 +1,16 @@
 """
 Competition Game
 """
-from boa.interop.Ontology.Contract import Migrate
-from boa.interop.System.App import RegisterAppCall, DynamicAppCall
-from boa.interop.System.Storage import GetContext, Get, Put, Delete
-from boa.interop.System.Runtime import CheckWitness, GetTime, Notify, Serialize, Deserialize
-from boa.interop.System.ExecutionEngine import GetExecutingScriptHash, GetScriptContainer
-from boa.interop.Ontology.Native import Invoke
-from boa.interop.Ontology.Runtime import GetCurrentBlockHash
-from boa.builtins import ToScriptHash, concat, state, sha256
-from boa.interop.System.Transaction import GetTransactionHash
+from ontology.interop.Ontology.Contract import Migrate
+from ontology.interop.System.App import RegisterAppCall, DynamicAppCall
+from ontology.interop.System.Storage import GetContext, Get, Put, Delete
+from ontology.interop.System.Runtime import CheckWitness, GetTime, Notify, Serialize, Deserialize
+from ontology.interop.System.ExecutionEngine import GetExecutingScriptHash, GetScriptContainer
+from ontology.interop.Ontology.Native import Invoke
+from ontology.interop.Ontology.Runtime import GetCurrentBlockHash, Base58ToAddress
+from ontology.builtins import concat, state, sha256
+from ontology.interop.System.Transaction import GetTransactionHash
+from ontology.libont import int, elt_in, str
 
 """
 https://github.com/ONT-Avocados/python-template/blob/master/libs/Utils.py
@@ -141,11 +142,11 @@ def Sqrt(a):
 
 ONGAddress = bytearray(b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02')
 # the original company
-Dev1 = ToScriptHash("AYqCVffRcbPkf1BVCYPJqqoiFTFmvwYKhG")
+Dev1 = Base58ToAddress("AYqCVffRcbPkf1BVCYPJqqoiFTFmvwYKhG")
 # the cooperator
-Dev2 = ToScriptHash("ANTPeXCffDZCaCXxY9u2UdssB2EYpP4BMh")
+Dev2 = Base58ToAddress("ANTPeXCffDZCaCXxY9u2UdssB2EYpP4BMh")
 
-Operater = ToScriptHash("AQf4Mzu1YJrhz9f3aRkkwSm9n3qhXGSh4p")
+Operater = Base58ToAddress("AQf4Mzu1YJrhz9f3aRkkwSm9n3qhXGSh4p")
 
 INIT_KEY = "Inited"
 ContractAddress = GetExecutingScriptHash()
@@ -325,7 +326,7 @@ def sendReqToOracle(jsonIndex):
     call oracle to get format or info of Games, including the, diskId
     """
     RequireWitness(Operater)
-
+    jsonIndex = str(jsonIndex)
     req = getOracleReq(jsonIndex)
 
     txhash = GetTransactionHash(GetScriptContainer())
@@ -341,7 +342,7 @@ def sendReqToOracle(jsonIndex):
 
 def createGameByOracleRes(jsonIndex):
     RequireWitness(Operater)
-
+    jsonIndex = str(jsonIndex)
     # # make sure the result hasn't be saved before
     # Require(not getGameResult(gameId))
 
@@ -410,7 +411,7 @@ def resetGameBetEndTime(gameId, newBetEndTime):
 def placeBet(address, gameId, diskId, betStatus, ongAmount):
     RequireWitness(address)
     # make sure address can place bet, otherwise, raise exception
-    Require(canPlaceBet(gameId) == True)
+    Require(canPlaceBet(gameId))
 
     Require(not getDiskStatus(diskId))
     diskIdListInfo = Get(GetContext(), concatKey(GAME_DISKID_LIST_PREFIX, gameId))
@@ -455,7 +456,7 @@ def saveGameResultByOracleRes(jsonIndex):
     :return:
     """
     RequireWitness(Operater)
-
+    jsonIndex = str(jsonIndex)
     # make sure the request has been sent out to the oracle contract
     sentReqTxhash = Get(GetContext(), concatKey(SENTREQHASH_SAVERES_PREFIX, jsonIndex))
 
@@ -786,93 +787,21 @@ def getOracleReq(jsonIndex):
     :param gameId:
     :return:
     """
-    # url = concat(concat('"http://data.nba.net/prod/v2/', gameId), '/scoreboard.json"')
-    # url = concat('"https://github.com/skyinglyh1/competition/blob/master/test.json')
-    # reqtmp = """{
-    # 		"scheduler":{
-    # 			"type": "runAfter",
-    # 			"params": "2018-06-15 08:37:18"
-    # 		},
-    # 		"tasks":[
-    # 			{
-    # 			  "type": "httpGet",
-    # 			  "params": {
-    # 				"url":"""
-    # reqhead = concat(concat(reqtmp, url), """}},""")
-    # body = """{
-    # 				"type": "jsonParse",
-    # 				"params":
-    # 				{
-    # 					"data":
-    # 					[
-    # 						{
-    # 							"type": "Array",
-    # 							"path": ["data", "game_game_array","1"],
-    # 							"sub_type":
-    # 							[
-    # 								{
-    # 									"type": "Struct",
-    # 									"sub_type":
-    # 									[
-    # 										{
-    # 											"type": "Int",
-    # 											"path": ["game_game_id"]
-    # 										},
-    # 										{
-    # 											"type": "Int",
-    # 											"path": ["count_down_time"]
-    # 										},
-    # 										{
-    # 											"type": "Array",
-    # 											"path": ["game_disk_array"],
-    # 											"sub_type":
-    # 											[
-    # 											    {
-    # 											        "type": "Struct",
-    # 											        "sub_type":
-    # 											        [
-    # 											            {
-    # 											                "type": "Int",
-    # 											                "path": ["game_disk_id"]
-    # 											            },
-    # 											            {
-    # 											                "type": "Int",
-    # 											                "path": ["game_disk_result"]
-    # 											            }
-    # 											        ]
-    # 											    }
-    # 											]
-    # 										}
-    #
-    # 									]
-    # 								}
-    # 							]
-    # 						}
-    # 					]
-    # 				}
-    # 			}
-    # 		]
-    # 	}
-    #     """
-    # req = concat(reqhead, body)
 
-    req = """
-    {
-        "scheduler":
-        {
-            "type": "runAfter",
-            "params": "2018-06-15 08:37:18"
-        },
-        "tasks":
-        [
-            {
-              "type": "httpGet",
-              "params": 
-              {
-                "url": "http://localhost:5000"
-              }
-            },
-            {
+    url = concat(concat('"http://47.88.230.168:8886/api/publish-match?gameMatchRecordId=', jsonIndex), '"')
+    reqtmp = """{
+    		"scheduler":{
+    			"type": "runAfter",
+    			"params": "2018-06-15 08:37:18"
+    		},
+    		"tasks":[
+    			{
+    			  "type": "httpGet",
+    			  "params": {
+    				"url":"""
+    reqhead = concat(concat(reqtmp, url), """}},""")
+
+    body = """{
                 "type": "jsonParse",
                 "params":
                 {
@@ -927,6 +856,79 @@ def getOracleReq(jsonIndex):
         ]
     }	
     """
+    req = concat(reqhead, body)
+    Notify(["111", req])
+    # req = """
+    # {
+    #     "scheduler":
+    #     {
+    #         "type": "runAfter",
+    #         "params": "2018-06-15 08:37:18"
+    #     },
+    #     "tasks":
+    #     [
+    #         {
+    #           "type": "httpGet",
+    #           "params":
+    #           {
+    #             "url": "http://localhost:5000"
+    #           }
+    #         },
+    #         {
+    #             "type": "jsonParse",
+    #             "params":
+    #             {
+    #                 "data":
+    #                 [
+    #                     {
+    #                         "type": "Array",
+    #                         "path": ["data", "game_game_array"],
+    #                         "sub_type":
+    #                         [
+    #                             {
+    #                                 "type": "Struct",
+    #                                 "sub_type":
+    #                                 [
+    #                                     {
+    #                                         "type": "Int",
+    #                                         "path": ["game_game_id"]
+    #                                     },
+    #                                     {
+    #                                         "type": "Int",
+    #                                         "path": ["count_down_time"]
+    #                                     },
+    #                                     {
+    #                                         "type": "Array",
+    #                                         "path": ["game_disk_array"],
+    #                                         "sub_type":
+    #                                         [
+    #                                             {
+    #                                                 "type": "Struct",
+    #                                                 "sub_type":
+    #                                                 [
+    #                                                     {
+    #                                                         "type": "Int",
+    #                                                         "path": ["game_disk_id"]
+    #                                                     },
+    #                                                     {
+    #                                                         "type": "Int",
+    #                                                         "path": ["game_disk_result"]
+    #                                                     }
+    #                                                 ]
+    #                                             }
+    #                                         ]
+    #                                     }
+    #
+    #                                 ]
+    #                             }
+    #                         ]
+    #                     }
+    #                 ]
+    #             }
+    #         }
+    #     ]
+    # }
+    # """
 
     return req
 
