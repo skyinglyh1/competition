@@ -176,11 +176,13 @@ DISK_BET_PLAYER_LIST_PREFIX = "G11"
 DISK_PLAYER_BET_BALANCE_PREFIX = "G12"
 DISK_PLAYERS_BET_AMOUNT_PREFIX = "G13"
 
-
-AbortSide = -1
+DefaultSide = 9
+AbortSide = 8
 TieSide = 0
 LeftSide = 1
 RightSide = 2
+
+SidesList = [DefaultSide, TieSide, LeftSide, RightSide, AbortSide]
 
 Dev1Percentage = 80
 
@@ -387,7 +389,6 @@ def createGameByOracleRes(jsonIndex):
         gameIdIndex = gameIdIndex + 1
 
     # # extract game and disk info from res
-    # # make sure gameId is consistent with that provided within response
     # # gameId, diskIdList, betEndTime
 
     Notify(["createGameByOracleRes", gameIdList, gameDiskIdList, endTimeList])
@@ -462,21 +463,15 @@ def saveGameResultByOracleRes(jsonIndex):
     if a[2] != 0:
         Notify(["SaveGameResErr", "Get Response From Oracle With Error!"])
         return False
-    # Notify(["111", a])
     b = Deserialize(a[0])
-
-    # Notify(["222", b])
     c = b[0]
-    # Notify(["333", c])
     gameIdList = []
-    # endTimeList = []
     gameDiskIdList = []
     gameDiskResultList = []
     for game in c:
         gameId = game[0]
         gameIdList.append(gameId)
-        # endTime = game[1]
-        # endTimeList.append(endTime)
+
         tmpDiskIdList = []
         tmpDiskResList = []
         tmp = game[2]
@@ -500,16 +495,17 @@ def saveGameResultByOracleRes(jsonIndex):
         diskIdIndex = 0
         while diskIdIndex < diskIdLen:
             diskId = diskIdList[diskIdIndex]
+            # make sure gameId is consistent with that provided within response
             Require(diskId == savedDiskIdList[diskIdIndex])
             diskRes = gameDiskResultList[gameIdIndex][diskIdIndex]
-            if diskRes < -2 or diskRes > 2:
-                diskRes = -2
-            diskResMap[diskId] = diskRes
+            # save the match/game result requesting from oracle contract to this contract
+            Require(_checkInList(diskRes, SidesList))
+            diskResMap[diskId] = AbortSide
             diskIdIndex = diskIdIndex + 1
         Put(GetContext(), concatKey(GAME_RES_PREFIX, gameId), Serialize(diskResMap))
         gameIdIndex = gameIdIndex + 1
 
-    # save the match/game result requesting from oracle contract to this contract
+
     Notify(["saveGameResultByOracleRes", jsonIndex, gameDiskIdList, gameDiskResultList])
     return True
 
@@ -553,9 +549,9 @@ def saveGameResultByHand(gameId, diskIdList, diskResList):
     while diskIdIndex < diskIdLen:
 
         diskId = diskIdList[diskIdIndex]
-        Require(getDiskStatus(diskId) == 0)
         Require(_checkInList(diskId, gameDiskIdList))
-        Require(diskResMapInfo[diskId] == -2)
+        Require(getDiskStatus(diskId) == 0)
+        # Require(diskResMapInfo[diskId] == DefaultSide)
         diskResMap[diskId] = diskResList[diskIdIndex]
         diskIdIndex = diskIdIndex + 1
     Put(GetContext(), concatKey(GAME_RES_PREFIX, gameId), Serialize(diskResMap))
@@ -569,8 +565,6 @@ def endDisksByHand(gameId, diskIdList):
     # diskResList = getd
     totalDiskProfitForDev = 0
     diskIdLen = len(diskIdList)
-    # diskResLen = len(diskResList)
-    # Require(diskIdLen == diskResLen)
     diskResMapInfo = Get(GetContext(), concatKey(GAME_RES_PREFIX, gameId))
     Require(not diskResMapInfo)
     diskResMap = Deserialize(diskResMapInfo)
@@ -589,16 +583,16 @@ def endDisksByHand(gameId, diskIdList):
 def _endDisk(diskId, diskRes):
     """
     settle all the accounts within diskId disk bet.
-    :param gameId:
-    :param diskId:
-    :param diskRes: could be -2, -1, 0, 1, 2
+    :param diskId: disk id
+    :param diskRes: could be DefaultSide:9, AbortSide:8, TieSide:0, LeftSide:1, RightSide:2
     :return: profit for dev
     """
     RequireWitness(Operater)
+    Require(_checkInList(diskRes, SidesList))
 
     # Require(not getDiskStatus(diskId))
-    # Require(diskRes != -2)
-    if getDiskStatus(diskId) == 1 or diskRes == -2:
+    # Require(diskRes != DefaultSide)
+    if getDiskStatus(diskId) == 1 or diskRes == DefaultSide:
         return 0
 
     if diskRes == AbortSide:
