@@ -160,6 +160,7 @@ SelfContractAddress = GetExecutingScriptHash()
 DEV_PROFIT_PREFIX = "DEV"
 FEE_PERCENTAGE_KEY = "FEE"
 
+MIN_BET_AMOUNT_KEY = "MBA"
 
 SENTREQHASH_FORMGAME_PREFIX = "G1"
 GAME_STATUS_PREFIX = 'G2'
@@ -196,6 +197,11 @@ def Main(operation, args):
             return False
         feePercentage = args[0]
         return setFeePercentage(feePercentage)
+    if operation == "setMinBetAmount":
+        if len(args) != 1:
+            return False
+        minBetAmount = args[0]
+        return setMinBetAmount(minBetAmount)
     if operation == "sendReqToOracle":
         if len(args) != 1:
             return False
@@ -258,6 +264,8 @@ def Main(operation, args):
         return getDevProfit(devAddr)
     if operation == "getFeePercentage":
         return getFeePercentage()
+    if operation == "getMinBetAmount":
+        return getMinBetAmount()
     if operation == "getDiskIdList":
         if len(args) != 1:
             return False
@@ -320,6 +328,13 @@ def setFeePercentage(feePercentage):
     Notify(["setFeePercentage", feePercentage])
     return True
 
+def setMinBetAmount(minBetAmount):
+    RequireWitness(Operater)
+    Require(minBetAmount > 0)
+    Put(GetContext(), MIN_BET_AMOUNT_KEY, minBetAmount)
+    Notify(["setMinBetAmount", minBetAmount])
+    return True
+
 
 def sendReqToOracle(jsonIndex):
     """
@@ -338,7 +353,7 @@ def sendReqToOracle(jsonIndex):
         Put(GetContext(), concatKey(SENTREQHASH_FORMGAME_PREFIX, jsonIndex), txhash)
     res = OracleContract('CreateOracleRequest', [req, Operater])
 
-    Notify(["sendReqToOracle", txhash, res])
+    Notify(["sendReqToOracle", txhash])
     return True
 
 
@@ -356,17 +371,20 @@ def createGameByOracleRes(jsonIndex):
     sentReqTxhash = Get(GetContext(), concatKey(SENTREQHASH_FORMGAME_PREFIX, jsonIndex))
     # Require(sentReqTxhash)
     if not sentReqTxhash:
-        Notify(["createGameErr", "Request To Initiate Game Failed!"])
+        # Error 101: "Request To Initiate Game Failed!"
+        Notify(["Error", 101])
         return False
     response = OracleContract('GetOracleOutcome', [sentReqTxhash])
     # Require(response)
     if not response:
-        Notify(["createGameErr", "Get Response From Oracle Failed!"])
+        # Error 102: "Get Response From Oracle Failed!"
+        Notify(["Error", 102])
         return False
 
     a = Deserialize(response)
     if a[2] != 0:
-        Notify(["createGameErr", "Get Response From Oracle With Error!"])
+        # Error 103: "Get Response From Oracle With Error!"
+        Notify(["Error", 103])
         return False
     b = Deserialize(a[0])
 
@@ -419,24 +437,32 @@ def placeBet(address, gameId, diskId, betStatus, ongAmount):
     # make sure address can place bet, otherwise, raise exception
     Require(canPlaceBet(gameId))
 
+    if ongAmount < getMinBetAmount():
+        # Error 201: "Please bet more ONG!"
+        Notify(["Error", 201])
+        return False
+
     Require(not getDiskStatus(diskId))
     diskIdListInfo = Get(GetContext(), concatKey(GAME_DISKID_LIST_PREFIX, gameId))
 
     if not diskIdListInfo:
-        Notify(["PlaceBetErr", "diskId Not Exist!"])
+        # Error 202: "diskId Not Exist!"
+        Notify(["Error", 202])
         return False
     diskIdList = Deserialize(diskIdListInfo)
     # make sure the passing by diskId is legal
     # Require(_checkInList(diskId, diskIdList))
     if _checkInList(diskId, diskIdList) == False:
-        Notify(["PlaceBetErr", "diskId illegal!"])
+        # Error 203: "diskId illegal!"
+        Notify(["Error", 203])
         return False
 
     # betStatus can only be 0, 1 or 2
     if betStatus == TieSide or betStatus == LeftSide or betStatus == RightSide:
         Require(_transferONG(address, ContractAddress, ongAmount))
     else:
-        Notify(["PlaceBetErr", "betStatus illegal!"])
+        # Error 204: "betStatus illegal!"
+        Notify(["Error", 204])
         return False
     playersList = getDiskPlayersList(diskId, betStatus)
     if not _checkInList(address, playersList):
@@ -467,19 +493,22 @@ def saveGameResultByOracleRes(jsonIndex):
 
     # Require(sentReqTxhash)
     if not sentReqTxhash:
-        Notify(["SaveGameResErr", "Request To Save Game Results Failed!"])
+        # Error 301: "Request To Save Game Results Failed!"
+        Notify(["Error", 301])
         return False
 
     response = OracleContract('GetOracleOutcome', [sentReqTxhash])
 
     # Require(response)
     if not response:
-        Notify(["SaveGameResErr", "Get Response From Oracle Failed!"])
+        # Error 302: "Get Response From Oracle Failed!"
+        Notify(["Error", 302])
         return False
 
     a = Deserialize(response)
     if a[2] != 0:
-        Notify(["SaveGameResErr", "Get Response From Oracle With Error!"])
+        # Error 303: "Get Response From Oracle With Error!"
+        Notify(["Error", 303])
         return False
     b = Deserialize(a[0])
     c = b[0]
@@ -560,7 +589,8 @@ def saveGameResultByHand(gameId, diskIdList, diskResList):
     Require(canPlaceBet(gameId) == False)
     diskResMapInfo = Get(GetContext(), concatKey(GAME_RES_PREFIX, gameId))
     if not diskResMapInfo:
-        Notify(["saveGameResultByHandErr", "Should Request Game Result First!"])
+        # 401: "Operator Should Request Game Result First!"
+        Notify(["Error", 401])
         return False
     diskResMap = Deserialize(diskResMapInfo)
     gameDiskIdList = getDiskIdList(gameId)
@@ -676,6 +706,9 @@ def getDevProfit(devAddr):
 def getFeePercentage():
     return Get(GetContext(), FEE_PERCENTAGE_KEY)
 
+def getMinBetAmount():
+    return Get(GetContext(), MIN_BET_AMOUNT_KEY)
+
 def getDiskIdList(gameId):
     diskIdListInfo = Get(GetContext(), concatKey(GAME_DISKID_LIST_PREFIX, gameId))
     if not diskIdListInfo:
@@ -778,7 +811,7 @@ def _payBackToPlayers(diskId):
 
 def _updateProfitForDev(profitPorDev):
     RequireWitness(Operater)
-    Notify(["666"])
+    # Notify(["666"])
     dev1Share = Div(Mul(profitPorDev, Dev1Percentage), 100)
     Put(GetContext(), concatKey(DEV_PROFIT_PREFIX, Dev1), Add(getDevProfit(Dev1), dev1Share))
     Put(GetContext(), concatKey(DEV_PROFIT_PREFIX, Dev2), Add(getDevProfit(Dev2), Sub(profitPorDev, dev1Share)))
