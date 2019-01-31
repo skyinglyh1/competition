@@ -146,7 +146,7 @@ Dev1 = Base58ToAddress("AYqCVffRcbPkf1BVCYPJqqoiFTFmvwYKhG")
 # the cooperator
 Dev2 = Base58ToAddress("ANTPeXCffDZCaCXxY9u2UdssB2EYpP4BMh")
 
-Operater = Base58ToAddress("AQf4Mzu1YJrhz9f3aRkkwSm9n3qhXGSh4p")
+Operater = Base58ToAddress("AXsh35W87n5Ja45TkdFp5TwbinvNU2Uo9i")
 
 INIT_KEY = "Inited"
 ContractAddress = GetExecutingScriptHash()
@@ -154,7 +154,7 @@ ONGMagnitude = 1000000000
 Magnitude = 1000000000000000000000000000000
 
 
-OracleContract = RegisterAppCall('b108e1d2a7e8db11cb2150ccf1788d56a243996d', 'operation', 'args')
+OracleContract = RegisterAppCall('e0d635c7eb2c5eaa7d2207756a4c03a89790934a', 'operation', 'args')
 SelfContractAddress = GetExecutingScriptHash()
 
 DEV_PROFIT_PREFIX = "DEV"
