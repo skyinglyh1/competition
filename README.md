@@ -57,6 +57,9 @@ json文件内容应包含不同的对局及不同对局下对应的盘口及不�
 ## 其他可改动参数：
 13. ```setFeePercentage(feePercentage)``` 可更改抽成比例feePercentage，只有Operator可更改。feePercentage应为[0, 100)
 
+31. ```setMinBetAmount(minBetAmount)```可更改用户最小下注的ONG的量(>=minBetAmount是合法的),只有Operator可对这个值进行更改。
+
+
 ## 其他可查询信息 (通过预执行的方式)
 
 14. ```getFeePercentage()``` 查询抽成比例。
@@ -89,6 +92,8 @@ json文件内容应包含不同的对局及不同对局下对应的盘口及不�
 ```
 
 22. ```getDiskStatus(diskId)```根据diskId查询某盘口是否已经被结算，0表示未结算，1表示已结算。结算也正当于盘口竞猜是否结束。
+
+32. ```getMinBetAmount()``` 可查询用户最小下注的ONG的量(>=minBetAmount是合法的)。
 
 
 ## 关于核心函数接口参数说明：
@@ -129,3 +134,7 @@ diskIdList为这些盘口组成的list.
 gameId 为某对局id
 newBetEndTime为该对局新的下注截止时间
 ```
+
+31. 在第```13```条下面
+
+32. 在第```22```条下面
