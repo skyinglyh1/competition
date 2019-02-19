@@ -1,3 +1,4 @@
+OntCversion = '2.0.0'
 """
 Competition Game
 """
@@ -7,10 +8,10 @@ from ontology.interop.System.Storage import GetContext, Get, Put, Delete
 from ontology.interop.System.Runtime import CheckWitness, GetTime, Notify, Serialize, Deserialize
 from ontology.interop.System.ExecutionEngine import GetExecutingScriptHash, GetScriptContainer
 from ontology.interop.Ontology.Native import Invoke
-from ontology.interop.Ontology.Runtime import GetCurrentBlockHash, Base58ToAddress
-from ontology.builtins import concat, state, sha256
+from ontology.interop.Ontology.Runtime import Base58ToAddress
+from ontology.builtins import concat, state
 from ontology.interop.System.Transaction import GetTransactionHash
-from ontology.libont import int, elt_in, str
+from ontology.libont import str
 
 """
 https://github.com/ONT-Avocados/python-template/blob/master/libs/Utils.py
@@ -146,6 +147,7 @@ Dev1 = Base58ToAddress("AYqCVffRcbPkf1BVCYPJqqoiFTFmvwYKhG")
 # the cooperator
 Dev2 = Base58ToAddress("ANTPeXCffDZCaCXxY9u2UdssB2EYpP4BMh")
 
+
 Operater = Base58ToAddress("AQf4Mzu1YJrhz9f3aRkkwSm9n3qhXGSh4p")
 
 INIT_KEY = "Inited"
@@ -161,6 +163,7 @@ DEV_PROFIT_PREFIX = "DEV"
 FEE_PERCENTAGE_KEY = "FEE"
 
 MIN_BET_AMOUNT_KEY = "MBA"
+DEV1_PERCENTAGE_KEY = "D1P"
 
 SENTREQHASH_FORMGAME_PREFIX = "G1"
 GAME_STATUS_PREFIX = 'G2'
@@ -187,11 +190,15 @@ RightSide = 2
 # SidesList = [DefaultSide, TieSide, LeftSide, RightSide, AbortSide]
 SidesList = [9, 0, 1, 2, 8]
 
-Dev1Percentage = 80
 
 def Main(operation, args):
     if operation == "init":
         return init()
+    if operation == "setDev1Percentage":
+        if len(args) != 1:
+            return False
+        dev1Percentage = args[0]
+        return setDev1Percentage(dev1Percentage)
     if operation == "setFeePercentage":
         if len(args) != 1:
             return False
@@ -320,6 +327,15 @@ def init():
         setFeePercentage(2)
     return True
 
+
+def setDev1Percentage(dev1Percentage):
+    RequireWitness(Dev1)
+    Require(dev1Percentage <= 100)
+    Require(dev1Percentage >= 0)
+    Put(GetContext(), DEV1_PERCENTAGE_KEY, dev1Percentage)
+    Notify(["setDevPercentage", dev1Percentage])
+    return True
+
 def setFeePercentage(feePercentage):
     RequireWitness(Operater)
     Require(feePercentage < 100)
@@ -416,9 +432,6 @@ def createGameByOracleRes(jsonIndex):
         Put(GetContext(), concatKey(GAME_BET_ENDTIME_PREFIX, gameId), betEndTime)
 
         gameIdIndex = gameIdIndex + 1
-
-    # # extract game and disk info from res
-    # # gameId, diskIdList, betEndTime
 
     Notify(["createGameByOracleRes", gameIdList, gameDiskIdList, endTimeList])
     return True
@@ -558,8 +571,6 @@ def saveGameResultByOracleRes(jsonIndex):
     return True
 
 
-
-
 def endGame(gameIdList):
     RequireWitness(Operater)
     totalDiskProfitForDev = 0
@@ -578,7 +589,6 @@ def endGame(gameIdList):
                 diskRes = diskResMap[diskId]
                 diskProfitForDev = _endDisk(diskId, diskRes)
                 totalDiskProfitForDev = Add(totalDiskProfitForDev, diskProfitForDev)
-    # Notify(["endGame", gameIdList])
     # update the profit for dev
     _updateProfitForDev(totalDiskProfitForDev)
     return True
@@ -639,8 +649,6 @@ def _endDisk(diskId, diskRes):
     RequireWitness(Operater)
     Require(_checkInList(diskRes, SidesList))
 
-    # Require(not getDiskStatus(diskId))
-    # Require(diskRes != DefaultSide)
     if getDiskStatus(diskId) == 1 or diskRes == DefaultSide:
         return 0
     if diskRes == AbortSide:
@@ -705,6 +713,9 @@ def getDevProfit(devAddr):
 
 def getFeePercentage():
     return Get(GetContext(), FEE_PERCENTAGE_KEY)
+
+def getDev1Percentage():
+    return Get(GetContext(), DEV1_PERCENTAGE_KEY)
 
 def getMinBetAmount():
     return Get(GetContext(), MIN_BET_AMOUNT_KEY)
@@ -811,8 +822,8 @@ def _payBackToPlayers(diskId):
 
 def _updateProfitForDev(profitPorDev):
     RequireWitness(Operater)
-    # Notify(["666"])
-    dev1Share = Div(Mul(profitPorDev, Dev1Percentage), 100)
+    dev1Percentage = getDev1Percentage()
+    dev1Share = Div(Mul(profitPorDev, dev1Percentage), 100)
     Put(GetContext(), concatKey(DEV_PROFIT_PREFIX, Dev1), Add(getDevProfit(Dev1), dev1Share))
     Put(GetContext(), concatKey(DEV_PROFIT_PREFIX, Dev2), Add(getDevProfit(Dev2), Sub(profitPorDev, dev1Share)))
     return True
@@ -825,7 +836,6 @@ def getOracleReq(jsonIndex):
     :param gameId:
     :return:
     """
-
     url = concat(concat('"http://47.88.230.168:8886/api/publish-match?gameMatchRecordId=', str(jsonIndex)), '"')
     reqtmp = """{
     		"scheduler":{
@@ -895,79 +905,6 @@ def getOracleReq(jsonIndex):
     }	
     """
     req = concat(reqhead, body)
-    # Notify(["111", req])
-    # req = """
-    # {
-    #     "scheduler":
-    #     {
-    #         "type": "runAfter",
-    #         "params": "2018-06-15 08:37:18"
-    #     },
-    #     "tasks":
-    #     [
-    #         {
-    #           "type": "httpGet",
-    #           "params":
-    #           {
-    #             "url": "http://localhost:5000"
-    #           }
-    #         },
-    #         {
-    #             "type": "jsonParse",
-    #             "params":
-    #             {
-    #                 "data":
-    #                 [
-    #                     {
-    #                         "type": "Array",
-    #                         "path": ["data", "game_game_array"],
-    #                         "sub_type":
-    #                         [
-    #                             {
-    #                                 "type": "Struct",
-    #                                 "sub_type":
-    #                                 [
-    #                                     {
-    #                                         "type": "Int",
-    #                                         "path": ["game_game_id"]
-    #                                     },
-    #                                     {
-    #                                         "type": "Int",
-    #                                         "path": ["count_down_time"]
-    #                                     },
-    #                                     {
-    #                                         "type": "Array",
-    #                                         "path": ["game_disk_array"],
-    #                                         "sub_type":
-    #                                         [
-    #                                             {
-    #                                                 "type": "Struct",
-    #                                                 "sub_type":
-    #                                                 [
-    #                                                     {
-    #                                                         "type": "Int",
-    #                                                         "path": ["game_disk_id"]
-    #                                                     },
-    #                                                     {
-    #                                                         "type": "Int",
-    #                                                         "path": ["game_disk_result"]
-    #                                                     }
-    #                                                 ]
-    #                                             }
-    #                                         ]
-    #                                     }
-    #
-    #                                 ]
-    #                             }
-    #                         ]
-    #                     }
-    #                 ]
-    #             }
-    #         }
-    #     ]
-    # }
-    # """
-
     return req
 
 def _transferONG(fromAcct, toAcct, amount):

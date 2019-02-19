@@ -6,12 +6,12 @@
               {
                   "game_game_name": "First Match",
                   "game_game_id": 1,
-                  "count_down_time": 1547449399,
+                  "count_down_time": 1548312900,
                   "game_disk_array": [
                       {
                           "game_disk_id": 1,
                           "game_disk_name": "1_1",
-                          "game_disk_result": 9
+                          "game_disk_result": 1
                       },
                       {
                         "game_disk_id": 2,
@@ -23,7 +23,7 @@
               {
                 "game_game_name": "Second Match",
                 "game_game_id": 2,
-                "count_down_time": 1547449400,
+                "count_down_time": 1548312900,
                 "game_disk_array": [
                   {
                       "game_disk_id": 3,
@@ -41,7 +41,7 @@
             {
               "game_game_name": "Third Match",
               "game_game_id": 3,
-              "count_down_time": 1547449399,
+              "count_down_time": 1548312900,
               "game_disk_array": [
                   {
                       "game_disk_id": 5,
