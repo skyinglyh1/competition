@@ -333,7 +333,7 @@ def setDev1Percentage(dev1Percentage):
     Require(dev1Percentage <= 100)
     Require(dev1Percentage >= 0)
     Put(GetContext(), DEV1_PERCENTAGE_KEY, dev1Percentage)
-    Notify(["setDevPercentage", dev1Percentage])
+    Notify(["setDev1Percentage", dev1Percentage])
     return True
 
 def setFeePercentage(feePercentage):
