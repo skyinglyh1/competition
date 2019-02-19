@@ -281,6 +281,8 @@ def Main(operation, args):
         return getDevProfit(devAddr)
     if operation == "getFeePercentage":
         return getFeePercentage()
+    if operation == "getDev1Percentage":
+        return getDev1Percentage()
     if operation == "getMinBetAmount":
         return getMinBetAmount()
     if operation == "getDiskIdList":
@@ -348,7 +350,7 @@ def setDev1Percentage(dev1Percentage):
 
 def setFeePercentage(feePercentage):
     RequireWitness(Operater)
-    Require(feePercentage < 100)
+    Require(feePercentage <= 100)
     Require(feePercentage >= 0)
     Put(GetContext(), FEE_PERCENTAGE_KEY, feePercentage)
     Notify(["setFeePercentage", feePercentage])
