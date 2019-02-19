@@ -145,7 +145,7 @@ ONGAddress = bytearray(b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x0
 # the original company
 Dev1 = Base58ToAddress("AYqCVffRcbPkf1BVCYPJqqoiFTFmvwYKhG")
 # the cooperator
-Dev2 = Base58ToAddress("ANTPeXCffDZCaCXxY9u2UdssB2EYpP4BMh")
+Dev2 = Base58ToAddress("AbP7a7pbbqXU1SLzRKJXvw5YYxGdctoY6B")
 
 
 Operater = Base58ToAddress("AQf4Mzu1YJrhz9f3aRkkwSm9n3qhXGSh4p")
