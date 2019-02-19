@@ -11,7 +11,7 @@ from ontology.interop.Ontology.Native import Invoke
 from ontology.interop.Ontology.Runtime import Base58ToAddress
 from ontology.builtins import concat, state
 from ontology.interop.System.Transaction import GetTransactionHash
-from ontology.libont import str
+from ontology.libont import str, AddressFromVmCode
 
 """
 https://github.com/ONT-Avocados/python-template/blob/master/libs/Utils.py
@@ -263,6 +263,16 @@ def Main(operation, args):
             return False
         devAddr = args[0]
         return devWithdraw(devAddr)
+    if operation == "migrateContract":
+        Require(len(args) == 7)
+        code = args[0]
+        needStorage = args[1]
+        name = args[2]
+        version = args[3]
+        author = args[4]
+        email = args[5]
+        description = args[6]
+        return migrateContract(code, needStorage, name, version, author, email, description)
 
     if operation == "getDevProfit":
         if len(args) != 1:
@@ -694,7 +704,6 @@ def _endDisk(diskId, diskRes):
     Notify(["endDisk", diskId, diskRes, winnerPayAmountList])
     return Sub(Add(Add(rightBetAmount, leftBetAmount), tieBetAmount), totalPayOut)
 
-
 def devWithdraw(devAddr):
     RequireWitness(devAddr)
     devShare = getDevProfit(devAddr)
@@ -706,6 +715,23 @@ def devWithdraw(devAddr):
 
     Notify(["devWithdraw", devAddr, devShare])
     return True
+
+def migrateContract(code, needStorage, name, version, author, email, description):
+    RequireWitness(Dev1)
+    param = state(ContractAddress)
+    totalOngAmount = Invoke(0, ONGAddress, 'balanceOf', param)
+    newContractHash = AddressFromVmCode(code)
+    res = _transferONGFromContact(newContractHash, totalOngAmount)
+    Require(res)
+    if res == True:
+        res = Migrate(code, needStorage, name, version, author, email, description)
+        Require(res)
+        Notify(["Migrate Contract successfully", Dev1])
+        return True
+    else:
+        # Error: 501, MigrateContractError, transfer ONG to new contract error
+        Notify(["Error", 501])
+        return False
 
 
 def getDevProfit(devAddr):

@@ -138,3 +138,14 @@ newBetEndTime为该对局新的下注截止时间
 31. 在第```13```条下面
 
 32. 在第```22```条下面
+
+33. ```migragteContract```, 项目方可对合约进行迁移，```Dev1```拥有执行此函数的权力，迁移的效果是旧合约里的所有数据都会被转移至新合约内，且旧合约的资产(ONG)也会被转移到新合约内。
+```
+code: 新合约的avm Code
+needStorage: True
+name: String类
+version: String 类
+author: String 类
+email: String 类
+description: String 类
+```
