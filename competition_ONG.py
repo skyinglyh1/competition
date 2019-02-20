@@ -143,12 +143,12 @@ def Sqrt(a):
 
 ONGAddress = bytearray(b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02')
 # the original company
-Dev1 = Base58ToAddress("AYqCVffRcbPkf1BVCYPJqqoiFTFmvwYKhG")
+Dev1 = Base58ToAddress("ANBgspNDWvVVbwt7WNMMDBdbFumxL9APTr")
 # the cooperator
 Dev2 = Base58ToAddress("AbP7a7pbbqXU1SLzRKJXvw5YYxGdctoY6B")
 
 
-Operater = Base58ToAddress("AQf4Mzu1YJrhz9f3aRkkwSm9n3qhXGSh4p")
+Operater = Base58ToAddress("AVNp26rF6kdGjenWv2Nr7shDUvBe5i1xne")
 
 INIT_KEY = "Inited"
 ContractAddress = GetExecutingScriptHash()
@@ -156,7 +156,7 @@ ONGMagnitude = 1000000000
 Magnitude = 1000000000000000000000000000000
 
 
-OracleContract = RegisterAppCall('b108e1d2a7e8db11cb2150ccf1788d56a243996d', 'operation', 'args')
+OracleContract = RegisterAppCall('a6ee997b142b002d49670ab73803403b09a23fa0', 'operation', 'args')
 SelfContractAddress = GetExecutingScriptHash()
 
 DEV_PROFIT_PREFIX = "DEV"
@@ -783,19 +783,16 @@ def canPlaceBet(gameId):
 
 def getDiskResult(gameId, diskId):
     """
-
     :param gameId:
     :param diskId:
     :return:
     0 means: tie
     1 means: left side wins
     2 means: right side wins
-
     8 means: abortion
     9 means: the diskId has already been initialized, yet
              the diskId result hasn't been recorded into json.
              Meanwhile, saveGameResultByOracleRes has already been invoked.
-
     10 means: gameId has not been initialized.
     11 means: gameId has been initialized, yet diskId illegal.
     12 means: dev should get game results through Oracle first by invoking saveGameResultByOracleRes method.
