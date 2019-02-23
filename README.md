@@ -1,4 +1,4 @@
-此文档可作为competition_ONG.py合约的接口文档及使用介绍。 、
+此文档可作为competition_ONG_1.py合约的接口文档及使用介绍。 、
 ## 注意事项：
 
 a. smartX上应使用2.0编译器。
@@ -98,7 +98,11 @@ json文件内容应包含不同的对局及不同对局下对应的盘口及不�
 
 ## 关于核心函数接口参数说明：
 
-23. ```sendReqToOracle(jsonIndex)```， jsonIndex为构造目的url所必须的参数。
+23. ```sendReqToOracle(jsonIndex, formOrSave)```， jsonIndex为构造目的url所必须的参数,
+```
+jsonIndex:
+formOrSave: 0 means to form game（也就是流程中的第2步）, 1 means to save res（也就是流程中的第6步）。
+```
 
 24. ```createGameByOracleRes(jsonIndex)```,  jsonIndex为构造目的url所必须的参数。
 
@@ -148,4 +152,16 @@ version: String 类
 author: String 类
 email: String 类
 description: String 类
+```
+
+34. ```createGameByHand```, 项目方手动初始化多场对局(防止Oracle未能正常工作的情况出现)，```Operator```拥有执行此函数的权力。
+```
+jsonIndex： 初始化的这多场对局对应于哪个json文件，合约不对此数据作存储，只是在链上一个Notify内的存证使用。
+gameIdList：[gameId1, gameId2, gameId3]
+gameEndTimeList: [gameId1_endTime, gameId2_endTime, gameId3_endTime]
+diskIdList: [
+	[gameId1_diskId11, gameId1_diskId12, gameId1_diskId13],
+	[gameId2_diskId21, gameId2_diskId22, gameId1_diskId23],
+	[gameId3_diskId31, gameId3_diskId32, gameId1_diskId33]
+]
 ```
