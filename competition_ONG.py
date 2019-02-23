@@ -210,16 +210,25 @@ def Main(operation, args):
         minBetAmount = args[0]
         return setMinBetAmount(minBetAmount)
     if operation == "sendReqToOracle":
-        if len(args) != 1:
+        if len(args) != 2:
             return False
         jsonIndex = args[0]
-        return sendReqToOracle(jsonIndex)
+        formOrSave = args[1]
+        return sendReqToOracle(jsonIndex, formOrSave)
 
     if operation == "createGameByOracleRes":
         if len(args) != 1:
             return False
         jsonIndex = args[0]
         return createGameByOracleRes(jsonIndex)
+    if operation == "createGameByHand":
+        if len(args) != 4:
+            return False
+        jsonIndex = args[0]
+        gameIdList = args[1]
+        gameEndTimeList = args[2]
+        diskIdList = args[3]
+        return createGameByHand(jsonIndex, gameIdList, gameEndTimeList, diskIdList)
     if operation == "resetGameBetEndTime":
         if len(args) != 2:
             return False
@@ -364,10 +373,11 @@ def setMinBetAmount(minBetAmount):
     return True
 
 
-def sendReqToOracle(jsonIndex):
+def sendReqToOracle(jsonIndex, formOrSave):
     """
     call oracle to get format or info of Games, including the, diskId
     :param jsonIndex: Int
+    :param formOrSave: 0 means to form game, 1 means to save res
     :return:
     """
     RequireWitness(Operater)
@@ -375,10 +385,19 @@ def sendReqToOracle(jsonIndex):
     req = getOracleReq(jsonIndex)
 
     txhash = GetTransactionHash(GetScriptContainer())
-    if Get(GetContext(), concatKey(SENTREQHASH_FORMGAME_PREFIX, jsonIndex)):
+
+    if formOrSave == 0:
+        Put(GetContext(), concatKey(SENTREQHASH_FORMGAME_PREFIX, jsonIndex), txhash)
+    elif formOrSave == 1:
         Put(GetContext(), concatKey(SENTREQHASH_SAVERES_PREFIX, jsonIndex), txhash)
     else:
-        Put(GetContext(), concatKey(SENTREQHASH_FORMGAME_PREFIX, jsonIndex), txhash)
+        raise Exception("illegal formOrSame!")
+
+    # if Get(GetContext(), concatKey(SENTREQHASH_FORMGAME_PREFIX, jsonIndex)):
+    #     Put(GetContext(), concatKey(SENTREQHASH_SAVERES_PREFIX, jsonIndex), txhash)
+    # else:
+    #     Put(GetContext(), concatKey(SENTREQHASH_FORMGAME_PREFIX, jsonIndex), txhash)
+
     res = OracleContract('CreateOracleRequest', [req, Operater])
 
     Notify(["sendReqToOracle", txhash])
@@ -443,11 +462,30 @@ def createGameByOracleRes(jsonIndex):
         Put(GetContext(), concatKey(GAME_DISKID_LIST_PREFIX, gameId), Serialize(diskIdList))
         Put(GetContext(), concatKey(GAME_BET_ENDTIME_PREFIX, gameId), betEndTime)
 
-        gameIdIndex = gameIdIndex + 1
+        gameIdIndex = Add(gameIdIndex, 1)
+        # gameIdIndex = gameIdIndex + 1
 
     Notify(["createGameByOracleRes", gameIdList, gameDiskIdList, endTimeList])
     return True
 
+
+def createGameByHand(jsonIndex, gameIdList, gameEndTimeList, diskIdList):
+    RequireWitness(Operater)
+    gameIdLen = len(gameIdList)
+    Require(gameIdLen == len(gameEndTimeList))
+    Require(gameIdLen == len(diskIdList))
+
+    index = 0
+    while index < gameIdLen:
+        gameId = gameIdList[index]
+        gameDiskIdList = diskIdList[index]
+        betEndTime = gameEndTimeList[index]
+        Put(GetContext(), concat(GAME_DISKID_LIST_PREFIX, gameId), Serialize(gameDiskIdList))
+        Put(GetContext(), concat(GAME_BET_ENDTIME_PREFIX, gameId), betEndTime)
+        index = Add(index, 1)
+
+    Notify(["createGameByHand", jsonIndex, gameIdList, gameEndTimeList, diskIdList])
+    return True
 
 def resetGameBetEndTime(gameId, newBetEndTime):
     RequireWitness(Operater)
